@@ -1,6 +1,8 @@
 package usecase
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"time"
@@ -17,6 +19,7 @@ type IUserUsecase interface {
 	GetLoggedInUser(tokenString string) (*model.UserResponse, error)
 	UpdateUser(user model.User, id uint) (model.UserResponse, error)
 	DeleteUser(id uint) error
+	GenerateRandomString(length int) string
 }
 
 type userUsecase struct {
@@ -120,4 +123,14 @@ func (uu *userUsecase) DeleteUser(id uint) error {
 		return err
 	}
 	return nil
+}
+
+// GenerateRandomString は指定された長さのランダムな文字列を生成します
+func (uu *userUsecase) GenerateRandomString(length int) string {
+	b := make([]byte, length)
+	_, err := rand.Read(b)
+	if err != nil {
+		return ""
+	}
+	return base64.URLEncoding.EncodeToString(b)[:length]
 }

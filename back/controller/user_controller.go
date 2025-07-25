@@ -97,7 +97,11 @@ func (uc *userController) GetLoggedInUser(c *gin.Context) {
 }
 
 func (uc *userController) CsrfToken(c *gin.Context) {
-	token := c.GetHeader("X-CSRF-Token")
+	token := c.GetString("csrf")
+	if token == "" {
+		// 32バイトのランダムな文字列を生成
+		token = uc.uu.GenerateRandomString(32)
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"csrf_token": token,
 	})
