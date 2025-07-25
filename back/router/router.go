@@ -40,6 +40,9 @@ func NewRouter(
 		c.Next()
 	})
 
+	// CSRF保護を適用
+	r.Use(csrfMiddleware(uc))
+
 	// 認証不要なエンドポイント
 	r.POST("/signup", gin.HandlerFunc(uc.SignUp))
 	r.POST("/login", gin.HandlerFunc(uc.LogIn))
@@ -56,6 +59,39 @@ func NewRouter(
 	}
 
 	return r
+}
+
+func csrfMiddleware(uc controller.IUserController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// GETリクエストやOPTIONSリクエストはスキップ
+		if c.Request.Method == "GET" || c.Request.Method == "OPTIONS" {
+			c.Next()
+			return
+		}
+
+		// CSRFトークンの検証
+		token := c.GetHeader("X-CSRF-Token")
+		if token == "" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "CSRF token missing"})
+			c.Abort()
+			return
+		}
+
+		// セッションIDの取得（この例ではJWTトークンを使用）
+		sessionID, err := c.Cookie("token")
+		if err != nil {
+			sessionID = "default" // フォールバック値
+		}
+
+		// トークンの検証
+		if !uc.ValidateCSRFToken(sessionID, token) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Invalid CSRF token"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
 }
 
 func authMiddleware() gin.HandlerFunc {

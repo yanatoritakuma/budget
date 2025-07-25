@@ -19,6 +19,7 @@ type IUserController interface {
 	GetLoggedInUser(c *gin.Context)
 	UpdateUser(c *gin.Context)
 	DeleteUser(c *gin.Context)
+	ValidateCSRFToken(sessionID, token string) bool
 }
 
 type userController struct {
@@ -97,14 +98,27 @@ func (uc *userController) GetLoggedInUser(c *gin.Context) {
 }
 
 func (uc *userController) CsrfToken(c *gin.Context) {
-	token := c.GetString("csrf")
-	if token == "" {
-		// 32バイトのランダムな文字列を生成
-		token = uc.uu.GenerateRandomString(32)
+	// セッションIDの取得
+	sessionID, err := c.Cookie("token")
+	if err != nil {
+		sessionID = "default" // フォールバック値
 	}
+
+	// 既存のトークンを取得または新しいトークンを生成
+	token, err := uc.uu.GetOrGenerateCSRFToken(sessionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to handle CSRF token"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"csrf_token": token,
 	})
+}
+
+// ValidateCSRFToken はCSRFトークンを検証します
+func (uc *userController) ValidateCSRFToken(sessionID, token string) bool {
+	return uc.uu.ValidateCSRFToken(sessionID, token)
 }
 
 func (uc *userController) UpdateUser(c *gin.Context) {

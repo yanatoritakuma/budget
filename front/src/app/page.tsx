@@ -1,9 +1,12 @@
+import "@/app/style.scss";
+import Link from "next/link";
 
 export default function Home() {
   return (
     <div>
-      <main>
-        sas
+      <main className="pageBox">
+        <h1>家計簿</h1>
+        <Link href="/auth/login">ログイン</Link>
       </main>
     </div>
   );

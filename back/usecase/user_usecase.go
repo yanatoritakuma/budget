@@ -20,14 +20,20 @@ type IUserUsecase interface {
 	UpdateUser(user model.User, id uint) (model.UserResponse, error)
 	DeleteUser(id uint) error
 	GenerateRandomString(length int) string
+	GetOrGenerateCSRFToken(sessionID string) (string, error)
+	ValidateCSRFToken(sessionID, token string) bool
 }
 
 type userUsecase struct {
-	ur repository.IUserRepository
+	ur         repository.IUserRepository
+	tokenStore *model.TokenStore
 }
 
 func NewUserUsecase(ur repository.IUserRepository) IUserUsecase {
-	return &userUsecase{ur}
+	return &userUsecase{
+		ur:         ur,
+		tokenStore: model.NewTokenStore(),
+	}
 }
 
 func (uu *userUsecase) SignUp(user model.User) (model.UserResponse, error) {
@@ -133,4 +139,30 @@ func (uu *userUsecase) GenerateRandomString(length int) string {
 		return ""
 	}
 	return base64.URLEncoding.EncodeToString(b)[:length]
+}
+
+// generateCSRFToken は新しいCSRFトークンを生成し、保存します（内部メソッド）
+func (uu *userUsecase) generateCSRFToken(sessionID string) (string, error) {
+	token := uu.GenerateRandomString(32)
+	uu.tokenStore.SaveToken(sessionID, model.CSRFToken{
+		Token:     token,
+		ExpiresAt: time.Now().Add(24 * time.Hour), // 24時間有効
+	})
+	return token, nil
+}
+
+// GetOrGenerateCSRFToken は既存のトークンを返すか、新しいトークンを生成します
+func (uu *userUsecase) GetOrGenerateCSRFToken(sessionID string) (string, error) {
+	// 既存のトークンを確認
+	if token, exists := uu.tokenStore.GetToken(sessionID); exists {
+		return token, nil
+	}
+
+	// 新しいトークンを生成
+	return uu.generateCSRFToken(sessionID)
+}
+
+// ValidateCSRFToken はCSRFトークンを検証します
+func (uu *userUsecase) ValidateCSRFToken(sessionID, token string) bool {
+	return uu.tokenStore.ValidateToken(sessionID, token)
 }
