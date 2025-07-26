@@ -6,7 +6,7 @@ export default function Home() {
     <div>
       <main className="pageBox">
         <h1>家計簿</h1>
-        <Link href="/auth/login">ログイン</Link>
+        <Link href="/auth">ログイン</Link>
       </main>
     </div>
   );
