@@ -21,6 +21,10 @@ type Props = {
   rows?: number;
   password?: boolean;
   onBlur?: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>;
+  name?: string;
+  placeholder?: string;
+  required?: boolean;
+  type?: string;
 };
 
 export const TextBox = memo(
@@ -34,6 +38,10 @@ export const TextBox = memo(
     rows,
     password,
     onBlur,
+    name,
+    placeholder,
+    required,
+    type,
   }: Props) => {
     const [displayPs, setDisplayPs] = useState(false);
     const handleMouseDownPassword = (
@@ -55,6 +63,10 @@ export const TextBox = memo(
             multiline={multiline}
             rows={rows}
             onBlur={onBlur}
+            placeholder={placeholder}
+            required={required}
+            type={type}
+            name={name}
           />
         ) : (
           <FormControl
@@ -89,6 +101,9 @@ export const TextBox = memo(
                 }
                 fullWidth={fullWidth}
                 onBlur={onBlur}
+                placeholder={placeholder}
+                required={required}
+                name={name}
               />
             </Box>
           </FormControl>

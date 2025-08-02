@@ -64,7 +64,7 @@ export default function Auth() {
           });
 
           if (res.ok) {
-            router.push("/auth/profile-img-setting");
+            router.push("/");
             router.refresh();
 
             alert("アカウント作成しました。");
