@@ -13,5 +13,6 @@ func main() {
 	defer db.CloseDB(dbConn)
 	dbConn.AutoMigrate(
 		&model.User{},
+		&model.Expense{},
 	)
 }

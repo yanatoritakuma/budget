@@ -10,10 +10,17 @@ import (
 
 func main() {
 	db := db.NewDB()
+
+	// User関連の依存関係
 	userRepository := repository.NewUserRepository(db)
 	userUsecase := usecase.NewUserUsecase(userRepository)
 	userController := controller.NewUserController(userUsecase)
 
-	r := router.NewRouter(userController)
+	// Expense関連の依存関係
+	expenseRepository := repository.NewExpenseRepository(db)
+	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository)
+	expenseController := controller.NewExpenseController(expenseUsecase)
+
+	r := router.NewRouter(userController, expenseController)
 	r.Run(":8080")
 }

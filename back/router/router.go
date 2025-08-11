@@ -12,6 +12,7 @@ import (
 
 func NewRouter(
 	uc controller.IUserController,
+	ec controller.IExpenseController,
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
@@ -56,6 +57,13 @@ func NewRouter(
 		auth.GET("", gin.HandlerFunc(uc.GetLoggedInUser))
 		auth.PUT("", gin.HandlerFunc(uc.UpdateUser))
 		auth.DELETE("/:userId", gin.HandlerFunc(uc.DeleteUser))
+	}
+
+	// 支出管理のエンドポイント（認証必要）
+	expenses := r.Group("/expenses")
+	expenses.Use(authMiddleware())
+	{
+		expenses.POST("", gin.HandlerFunc(ec.CreateExpense))
 	}
 
 	return r
@@ -118,6 +126,10 @@ func authMiddleware() gin.HandlerFunc {
 
 		claims := token.Claims.(jwt.MapClaims)
 		c.Set("user", claims)
+		// user_idを設定
+		if userID, ok := claims["user_id"].(float64); ok {
+			c.Set("user_id", uint(userID))
+		}
 		c.Next()
 	}
 }
