@@ -4,6 +4,7 @@ import { TextBox } from "@/components/elements/textBox/textBox";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createHeaders } from "@/utils/getCsrf";
+import { formattedDate } from "@/utils/formattedDate";
 
 export default function BudgetInput() {
   const router = useRouter();
@@ -45,7 +46,7 @@ export default function BudgetInput() {
         body: JSON.stringify({
           amount: amountNumber,
           store_name: budgetInput.storeName,
-          date: budgetInput.date,
+          date: formattedDate(budgetInput.date),
           category: budgetInput.category,
           memo: budgetInput.memo,
         }),
