@@ -7,6 +7,7 @@ import (
 
 type IExpenseUsecase interface {
 	CreateExpense(expense model.Expense) (model.ExpenseResponse, error)
+	GetExpense(year int, month int, category *string) ([]model.ExpenseResponse, error)
 }
 
 type expenseUsecase struct {
@@ -34,4 +35,28 @@ func (eu *expenseUsecase) CreateExpense(expense model.Expense) (model.ExpenseRes
 	}
 
 	return resExpense, nil
+}
+
+func (eu *expenseUsecase) GetExpense(year int, month int, category *string) ([]model.ExpenseResponse, error) {
+	expenses, err := eu.er.GetExpense(year, month, category)
+	if err != nil {
+		return nil, err
+	}
+
+	var expenseResponses []model.ExpenseResponse
+	for _, expense := range expenses {
+		expenseResponse := model.ExpenseResponse{
+			ID:        expense.ID,
+			UserID:    expense.UserID,
+			Amount:    expense.Amount,
+			StoreName: expense.StoreName,
+			Date:      expense.Date,
+			Category:  expense.Category,
+			Memo:      expense.Memo,
+			CreatedAt: expense.CreatedAt,
+		}
+		expenseResponses = append(expenseResponses, expenseResponse)
+	}
+
+	return expenseResponses, nil
 }

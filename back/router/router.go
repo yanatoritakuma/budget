@@ -64,6 +64,7 @@ func NewRouter(
 	expenses.Use(authMiddleware())
 	{
 		expenses.POST("", gin.HandlerFunc(ec.CreateExpense))
+		expenses.GET("", gin.HandlerFunc(ec.GetExpense))
 	}
 
 	return r
