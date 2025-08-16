@@ -1,8 +1,6 @@
 package usecase
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"time"
@@ -10,6 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/repository"
+	"github.com/yanatoritakuma/budget/back/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -20,7 +19,7 @@ type IUserUsecase interface {
 	UpdateUser(user model.User, id uint) (model.UserResponse, error)
 	DeleteUser(id uint) error
 	GetHouseholdUsers(userID uint) ([]model.UserResponse, error)
-	GenerateRandomString(length int) string
+	JoinHousehold(userID uint, inviteCode string) error
 	GetOrGenerateCSRFToken(sessionID string) (string, error)
 	ValidateCSRFToken(sessionID, token string) bool
 }
@@ -187,19 +186,31 @@ func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]model.UserResponse, err
 	return resUsers, nil
 }
 
-// GenerateRandomString は指定された長さのランダムな文字列を生成します
-func (uu *userUsecase) GenerateRandomString(length int) string {
-	b := make([]byte, length)
-	_, err := rand.Read(b)
-	if err != nil {
-		return ""
+func (uu *userUsecase) JoinHousehold(userID uint, inviteCode string) error {
+	// Find the household by invite code
+	var household model.Household
+	if err := uu.hr.GetHouseholdByInviteCode(&household, inviteCode); err != nil {
+		return fmt.Errorf("invalid invite code: %w", err)
 	}
-	return base64.URLEncoding.EncodeToString(b)[:length]
+
+	// Get the current user
+	var user model.User
+	if err := uu.ur.GetUserByID(&user, userID); err != nil {
+		return fmt.Errorf("could not find user: %w", err)
+	}
+
+	// Update user's household
+	user.HouseholdID = household.ID
+	if err := uu.ur.UpdateUser(&user, userID); err != nil {
+		return fmt.Errorf("failed to update user's household: %w", err)
+	}
+
+	return nil
 }
 
 // generateCSRFToken は新しいCSRFトークンを生成し、保存します（内部メソッド）
 func (uu *userUsecase) generateCSRFToken(sessionID string) (string, error) {
-	token := uu.GenerateRandomString(32)
+	token := utils.GenerateRandomString(32)
 	uu.tokenStore.SaveToken(sessionID, model.CSRFToken{
 		Token:     token,
 		ExpiresAt: time.Now().Add(24 * time.Hour), // 24時間有効

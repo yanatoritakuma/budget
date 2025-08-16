@@ -48,9 +48,10 @@ func (ur *userRepository) GetUserByID(user *model.User, id uint) error {
 
 func (ur *userRepository) UpdateUser(user *model.User, id uint) error {
 	result := ur.db.Model(user).Clauses(clause.Returning{}).Where("id=?", id).Updates(map[string]interface{}{
-		"email": user.Email,
-		"name":  user.Name,
-		"image": user.Image,
+		"email":        user.Email,
+		"name":         user.Name,
+		"image":        user.Image,
+		"household_id": user.HouseholdID,
 	})
 	if result.Error != nil {
 		return result.Error

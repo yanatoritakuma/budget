@@ -18,6 +18,7 @@ type IUserController interface {
 	CsrfToken(c *gin.Context)
 	GetLoggedInUser(c *gin.Context)
 	GetHouseholdUsers(c *gin.Context)
+	JoinHousehold(c *gin.Context)
 	UpdateUser(c *gin.Context)
 	DeleteUser(c *gin.Context)
 	ValidateCSRFToken(sessionID, token string) bool
@@ -177,4 +178,31 @@ func (uc *userController) GetHouseholdUsers(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, users)
+}
+
+type JoinHouseholdRequest struct {
+	InviteCode string `json:"invite_code"`
+}
+
+func (uc *userController) JoinHousehold(c *gin.Context) {
+	userClaims, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims := userClaims.(jwt.MapClaims)
+	userId := uint(claims["user_id"].(float64))
+
+	var req JoinHouseholdRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	if err := uc.uu.JoinHousehold(userId, req.InviteCode); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }

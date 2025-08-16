@@ -13,6 +13,7 @@ import (
 func NewRouter(
 	uc controller.IUserController,
 	ec controller.IExpenseController,
+	hc controller.IHouseholdController, // Added
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
@@ -20,7 +21,7 @@ func NewRouter(
 
 	// プロキシの設定
 	r.ForwardedByClientIP = true
-	r.TrustedPlatform = "X-Forwarded-For" // PlatformGoogleCloudを直接的なヘッダー指定に変更
+	r.TrustedPlatform = "X-Forwarded-For"
 
 	// CORSの設定
 	r.Use(cors.New(cors.Config{
@@ -72,40 +73,35 @@ func NewRouter(
 	household.Use(authMiddleware())
 	{
 		household.GET("/users", gin.HandlerFunc(uc.GetHouseholdUsers))
+		household.POST("/invite-code", gin.HandlerFunc(hc.GenerateInviteCode))
+		household.POST("/join", gin.HandlerFunc(uc.JoinHousehold))
 	}
 
 	return r
 }
 
+// ... (csrfMiddleware and authMiddleware are ok)
 func csrfMiddleware(uc controller.IUserController) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// GETリクエストやOPTIONSリクエストはスキップ
 		if c.Request.Method == "GET" || c.Request.Method == "OPTIONS" {
 			c.Next()
 			return
 		}
-
-		// CSRFトークンの検証
 		token := c.GetHeader("X-CSRF-Token")
 		if token == "" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "CSRF token missing"})
 			c.Abort()
 			return
 		}
-
-		// セッションIDの取得（この例ではJWTトークンを使用）
 		sessionID, err := c.Cookie("token")
 		if err != nil {
-			sessionID = "default" // フォールバック値
+			sessionID = "default"
 		}
-
-		// トークンの検証
 		if !uc.ValidateCSRFToken(sessionID, token) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Invalid CSRF token"})
 			c.Abort()
 			return
 		}
-
 		c.Next()
 	}
 }
@@ -118,23 +114,19 @@ func authMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
 		token, err := jwt.Parse(cookie, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
 			return []byte(os.Getenv("SECRET")), nil
 		})
-
 		if err != nil || !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			c.Abort()
 			return
 		}
-
 		claims := token.Claims.(jwt.MapClaims)
 		c.Set("user", claims)
-		// user_idを設定
 		if userID, ok := claims["user_id"].(float64); ok {
 			c.Set("user_id", uint(userID))
 		}

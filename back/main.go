@@ -19,11 +19,13 @@ func main() {
 	// Usecases
 	userUsecase := usecase.NewUserUsecase(userRepository, householdRepository)
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository)
+	householdUsecase := usecase.NewHouseholdUsecase(householdRepository, userRepository)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)
 	expenseController := controller.NewExpenseController(expenseUsecase)
+	householdController := controller.NewHouseholdController(householdUsecase)
 
-	r := router.NewRouter(userController, expenseController)
+	r := router.NewRouter(userController, expenseController, householdController)
 	r.Run(":8080")
 }
