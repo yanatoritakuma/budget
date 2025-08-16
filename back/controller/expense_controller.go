@@ -98,7 +98,7 @@ func (ec *expenseController) GetExpense(c *gin.Context) {
 	}
 
 	// 支出データを取得
-	expenses, err := ec.eu.GetExpense(yearInt, monthInt, categoryPtr)
+	expenses, err := ec.eu.GetExpense(userID, yearInt, monthInt, categoryPtr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "支出データの取得に失敗しました: " + err.Error()})
 		return

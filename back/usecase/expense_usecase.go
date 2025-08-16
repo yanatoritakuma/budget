@@ -7,15 +7,16 @@ import (
 
 type IExpenseUsecase interface {
 	CreateExpense(expense model.Expense) (model.ExpenseResponse, error)
-	GetExpense(year int, month int, category *string) ([]model.ExpenseResponse, error)
+	GetExpense(userID uint, year int, month int, category *string) ([]model.ExpenseResponse, error)
 }
 
 type expenseUsecase struct {
 	er repository.IExpenseRepository
+	ur repository.IUserRepository
 }
 
-func NewExpenseUsecase(er repository.IExpenseRepository) IExpenseUsecase {
-	return &expenseUsecase{er: er}
+func NewExpenseUsecase(er repository.IExpenseRepository, ur repository.IUserRepository) IExpenseUsecase {
+	return &expenseUsecase{er: er, ur: ur}
 }
 
 func (eu *expenseUsecase) CreateExpense(expense model.Expense) (model.ExpenseResponse, error) {
@@ -37,8 +38,14 @@ func (eu *expenseUsecase) CreateExpense(expense model.Expense) (model.ExpenseRes
 	return resExpense, nil
 }
 
-func (eu *expenseUsecase) GetExpense(year int, month int, category *string) ([]model.ExpenseResponse, error) {
-	expenses, err := eu.er.GetExpense(year, month, category)
+func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category *string) ([]model.ExpenseResponse, error) {
+	// Get user to find their household ID
+	var user model.User
+	if err := eu.ur.GetUserByID(&user, userID); err != nil {
+		return nil, err
+	}
+
+	expenses, err := eu.er.GetExpense(user.HouseholdID, year, month, category)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +54,10 @@ func (eu *expenseUsecase) GetExpense(year int, month int, category *string) ([]m
 	for _, expense := range expenses {
 		var payerName *string
 		if expense.PayerID != nil {
-			payerName = &expense.Payer.Name
+			// Ensure Payer is not nil before accessing Name
+			if expense.Payer.ID != 0 {
+				payerName = &expense.Payer.Name
+			}
 		}
 
 		expenseResponse := model.ExpenseResponse{

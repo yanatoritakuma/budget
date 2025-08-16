@@ -18,14 +18,20 @@ export default async function BudgetList() {
     <div className="budget-list-container">
       <h2 className="budget-list-title">今月の支出一覧</h2>
       <Suspense fallback={<div className="loading-message">読み込み中...</div>}>
-        {expenses.length > 0 ? (
+        {expenses?.length > 0 ? (
           expenses.map((expense) => (
             <div key={expense.id} className="expense-item">
               <div className="expense-details">
                 <p className="store-name">{expense.store_name}</p>
-                <span className="expense-date">{formatDateForDisplay(expense.date)}</span>
-                {expense.memo && <p className="expense-memo">メモ: {expense.memo}</p>}
-                {expense.payer_name && <p className="expense-payer">支払者: {expense.payer_name}</p>}
+                <span className="expense-date">
+                  {formatDateForDisplay(expense.date)}
+                </span>
+                {expense.memo && (
+                  <p className="expense-memo">メモ: {expense.memo}</p>
+                )}
+                {expense.payer_name && (
+                  <p className="expense-payer">支払者: {expense.payer_name}</p>
+                )}
               </div>
               <span className="expense-amount">
                 ¥{expense.amount.toLocaleString()}

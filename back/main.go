@@ -18,7 +18,7 @@ func main() {
 
 	// Usecases
 	userUsecase := usecase.NewUserUsecase(userRepository, householdRepository)
-	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository)
+	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository, userRepository)
 	householdUsecase := usecase.NewHouseholdUsecase(householdRepository, userRepository)
 
 	// Controllers
