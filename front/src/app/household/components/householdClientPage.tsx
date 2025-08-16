@@ -12,7 +12,6 @@ type Props = {
 
 export default function HouseholdClientPage({ initialUsers }: Props) {
   const router = useRouter();
-  const [users, setUsers] = useState<TLoginUser[]>(initialUsers);
   const [inviteCode, setInviteCode] = useState<string>("");
   const [joinCode, setJoinCode] = useState<string>("");
   const [error, setError] = useState<string>("");
@@ -25,8 +24,12 @@ export default function HouseholdClientPage({ initialUsers }: Props) {
       const newCode = await generateInviteCode();
       setInviteCode(newCode);
       setMessage("招待コードを生成しました。");
-    } catch (err: any) {
-      setError(err.message || "招待コードの生成に失敗しました。");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("招待コードの生成に失敗しました。");
+      }
     }
   };
 
@@ -39,38 +42,38 @@ export default function HouseholdClientPage({ initialUsers }: Props) {
       setMessage("世帯に参加しました！ページを更新しています...");
       // Refresh the page to reflect the new household
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "世帯への参加に失敗しました。");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("世帯への参加に失敗しました。");
+      }
     }
   };
 
   return (
     <div>
-      <section>
+      <section className="household-section">
         <h2>現在の世帯メンバー</h2>
         <ul>
-          {users.map((user) => (
+          {initialUsers.map((user) => (
             <li key={user.id}>{user.name}</li>
           ))}
         </ul>
       </section>
 
-      <hr />
-
-      <section>
+      <section className="household-section">
         <h2>他のユーザーを招待</h2>
         <button onClick={handleGenerateCode}>招待コードを生成</button>
         {inviteCode && (
-          <div>
+          <div className="invite-code-display">
             <p>このコードを他のユーザーと共有してください:</p>
             <code>{inviteCode}</code>
           </div>
         )}
       </section>
 
-      <hr />
-
-      <section>
+      <section className="household-section">
         <h2>別の世帯に参加</h2>
         <form onSubmit={handleJoinHousehold}>
           <input
@@ -84,8 +87,8 @@ export default function HouseholdClientPage({ initialUsers }: Props) {
         </form>
       </section>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {message && <p style={{ color: "green" }}>{message}</p>}
+      {error && <p className="status-message error">{error}</p>}
+      {message && <p className="status-message success">{message}</p>}
     </div>
   );
 }
