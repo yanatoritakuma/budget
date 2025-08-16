@@ -45,6 +45,11 @@ func (eu *expenseUsecase) GetExpense(year int, month int, category *string) ([]m
 
 	var expenseResponses []model.ExpenseResponse
 	for _, expense := range expenses {
+		var payerName *string
+		if expense.PayerID != nil {
+			payerName = &expense.Payer.Name
+		}
+
 		expenseResponse := model.ExpenseResponse{
 			ID:        expense.ID,
 			UserID:    expense.UserID,
@@ -54,6 +59,7 @@ func (eu *expenseUsecase) GetExpense(year int, month int, category *string) ([]m
 			Category:  expense.Category,
 			Memo:      expense.Memo,
 			CreatedAt: expense.CreatedAt,
+			PayerName: payerName,
 		}
 		expenseResponses = append(expenseResponses, expenseResponse)
 	}

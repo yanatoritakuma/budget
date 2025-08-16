@@ -24,6 +24,8 @@ export default async function BudgetList() {
               <div className="expense-details">
                 <p className="store-name">{expense.store_name}</p>
                 <span className="expense-date">{formatDateForDisplay(expense.date)}</span>
+                {expense.memo && <p className="expense-memo">メモ: {expense.memo}</p>}
+                {expense.payer_name && <p className="expense-payer">支払者: {expense.payer_name}</p>}
               </div>
               <span className="expense-amount">
                 ¥{expense.amount.toLocaleString()}

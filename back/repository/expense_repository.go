@@ -33,7 +33,7 @@ func (er *expenseRepository) GetExpense(year int, month int, category *string) (
 		query = query.Where("category = ?", *category)
 	}
 
-	if err := query.Find(&expenses).Error; err != nil {
+	if err := query.Preload("Payer").Find(&expenses).Error; err != nil {
 		return nil, err
 	}
 

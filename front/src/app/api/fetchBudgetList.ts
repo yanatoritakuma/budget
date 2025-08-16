@@ -15,6 +15,7 @@ type ExpenseResponse = {
   memo: string;
   store_name: string;
   user_id: number;
+  payer_name?: string; // Add optional payer_name
 };
 
 export async function fetchBudgetList({

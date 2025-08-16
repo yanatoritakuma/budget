@@ -13,6 +13,8 @@ type Expense struct {
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	UserID    uint      `json:"user_id" gorm:"not null"`
 	User      User      `json:"user" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
+	PayerID   *uint     `json:"payer_id"`
+	Payer     User      `json:"payer" gorm:"foreignKey:PayerID;references:ID;constraint:OnDelete:SET NULL"`
 }
 
 type ExpenseResponse struct {
@@ -24,4 +26,5 @@ type ExpenseResponse struct {
 	Category  string    `json:"category"`
 	Memo      string    `json:"memo"`
 	CreatedAt time.Time `json:"created_at"`
+	PayerName *string   `json:"payer_name"`
 }

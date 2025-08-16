@@ -7,7 +7,11 @@ import { createHeaders } from "@/utils/getCsrf";
 import { formattedDate } from "@/utils/formattedDate";
 import "./budgetInput.scss";
 
-export default function BudgetInput() {
+type Props = {
+  userId: number;
+};
+
+export default function BudgetInput({ userId }: Props) {
   const router = useRouter();
   const [budgetInput, setBudgetInput] = useState({
     amount: "",
@@ -31,7 +35,6 @@ export default function BudgetInput() {
     setError("");
 
     try {
-      // 数値型に変換
       const amountNumber = parseInt(budgetInput.amount);
 
       if (isNaN(amountNumber)) {
@@ -50,12 +53,12 @@ export default function BudgetInput() {
           date: formattedDate(budgetInput.date),
           category: budgetInput.category,
           memo: budgetInput.memo,
+          payer_id: userId, // Set payer_id to the logged-in user's ID
         }),
         credentials: "include",
       });
 
       if (res.ok) {
-        // フォームをリセット
         setBudgetInput({
           amount: "",
           storeName: "",

@@ -11,7 +11,7 @@ export default async function Page() {
       <h2>家計簿</h2>
       {loginUser ? (
         <>
-          <BudgetInput />
+          <BudgetInput userId={loginUser.id} />
           <BudgetList />
         </>
       ) : (
