@@ -14,7 +14,9 @@ export default async function Page() {
         <h2>家計簿</h2>
         <div className="login-prompt">
           <p>ログインしてください。</p>
-          <Link href="/login" className="login-link">ログインへ</Link>
+          <Link href="/auth" className="login-link">
+            ログインへ
+          </Link>
         </div>
       </main>
     );

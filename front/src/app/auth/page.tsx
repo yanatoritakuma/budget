@@ -8,7 +8,7 @@ export default async function Page() {
   return (
     <main className="pageBox">
       <div className="">
-        {loginUser.id !== undefined ? (
+        {loginUser?.id !== undefined ? (
           <div className="auth__loggedIn">
             <h3>ログイン済みです。</h3>
             <Link prefetch={false} href="/">
