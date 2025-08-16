@@ -41,7 +41,8 @@ func NewUserUsecase(ur repository.IUserRepository, hr repository.IHouseholdRepos
 func (uu *userUsecase) SignUp(user model.User) (model.UserResponse, error) {
 	// Create a new household for the user
 	newHousehold := model.Household{
-		Name: fmt.Sprintf("%s's Household", user.Name),
+		Name:       fmt.Sprintf("%s's Household", user.Name),
+		InviteCode: utils.GenerateRandomString(16), // Generate an initial invite code
 	}
 	if err := uu.hr.CreateHousehold(&newHousehold); err != nil {
 		return model.UserResponse{}, err

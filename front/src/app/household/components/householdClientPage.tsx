@@ -41,7 +41,7 @@ export default function HouseholdClientPage({ initialUsers }: Props) {
       await joinHousehold(joinCode);
       setMessage("世帯に参加しました！ページを更新しています...");
       // Refresh the page to reflect the new household
-      router.refresh();
+      router.push("/budget");
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
