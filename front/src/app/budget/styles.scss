@@ -4,6 +4,21 @@
   }
 }
 
+.page-nav {
+  text-align: center;
+  margin-bottom: 2rem;
+
+  a {
+    color: #0070f3;
+    text-decoration: none;
+    font-weight: 600;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
 .login-prompt {
   text-align: center;
   margin-top: 4rem;

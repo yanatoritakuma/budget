@@ -28,6 +28,9 @@ export default async function Page() {
   return (
     <main className="pageBox">
       <h2>家計簿</h2>
+      <div className="page-nav">
+        <Link href="/household">世帯管理へ</Link>
+      </div>
       <BudgetInput loginUser={loginUser} householdUsers={householdUsers} />
       <BudgetList />
     </main>
