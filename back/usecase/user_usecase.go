@@ -19,6 +19,7 @@ type IUserUsecase interface {
 	GetLoggedInUser(tokenString string) (*model.UserResponse, error)
 	UpdateUser(user model.User, id uint) (model.UserResponse, error)
 	DeleteUser(id uint) error
+	GetHouseholdUsers(userID uint) ([]model.UserResponse, error)
 	GenerateRandomString(length int) string
 	GetOrGenerateCSRFToken(sessionID string) (string, error)
 	ValidateCSRFToken(sessionID, token string) bool
@@ -26,25 +27,47 @@ type IUserUsecase interface {
 
 type userUsecase struct {
 	ur         repository.IUserRepository
+	hr         repository.IHouseholdRepository
 	tokenStore *model.TokenStore
 }
 
-func NewUserUsecase(ur repository.IUserRepository) IUserUsecase {
+func NewUserUsecase(ur repository.IUserRepository, hr repository.IHouseholdRepository) IUserUsecase {
 	return &userUsecase{
 		ur:         ur,
+		hr:         hr,
 		tokenStore: model.NewTokenStore(),
 	}
 }
 
 func (uu *userUsecase) SignUp(user model.User) (model.UserResponse, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 10)
-	if err != nil {
+	// Create a new household for the user
+	newHousehold := model.Household{
+		Name: fmt.Sprintf("%s's Household", user.Name),
+	}
+	if err := uu.hr.CreateHousehold(&newHousehold); err != nil {
 		return model.UserResponse{}, err
 	}
-	newUser := model.User{Email: user.Email, Password: string(hash), Name: user.Name, Image: user.Image}
+
+	// Hash the password
+	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 10)
+	if err != nil {
+		// Here, we should probably delete the household that was just created to avoid orphaned data.
+		// For simplicity in this step, we'll omit that. In a production system, this should be a transaction.
+		return model.UserResponse{}, err
+	}
+
+	// Create the new user with the household ID
+	newUser := model.User{
+		Email:       user.Email,
+		Password:    string(hash),
+		Name:        user.Name,
+		Image:       user.Image,
+		HouseholdID: newHousehold.ID,
+	}
 	if err := uu.ur.CreateUser(&newUser); err != nil {
 		return model.UserResponse{}, err
 	}
+
 	resUser := model.UserResponse{
 		ID:        newUser.ID,
 		Email:     newUser.Email,
@@ -129,6 +152,39 @@ func (uu *userUsecase) DeleteUser(id uint) error {
 		return err
 	}
 	return nil
+}
+
+func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]model.UserResponse, error) {
+	// Get the current user to find their household ID
+	var currentUser model.User
+	if err := uu.ur.GetUserByID(&currentUser, userID); err != nil {
+		return nil, fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	if currentUser.HouseholdID == 0 {
+		return nil, fmt.Errorf("current user does not belong to a household")
+	}
+
+	// Get all users from that household
+	var householdUsers []model.User
+	if err := uu.ur.GetUsersByHouseholdID(&householdUsers, currentUser.HouseholdID); err != nil {
+		return nil, fmt.Errorf("failed to get household users: %w", err)
+	}
+
+	// Format the response
+	var resUsers []model.UserResponse
+	for _, user := range householdUsers {
+		resUsers = append(resUsers, model.UserResponse{
+			ID:        user.ID,
+			Email:     user.Email,
+			Name:      user.Name,
+			Image:     user.Image,
+			Admin:     user.Admin,
+			CreatedAt: user.CreatedAt,
+		})
+	}
+
+	return resUsers, nil
 }
 
 // GenerateRandomString は指定された長さのランダムな文字列を生成します

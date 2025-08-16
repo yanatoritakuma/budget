@@ -17,6 +17,7 @@ type IUserController interface {
 	LogOut(c *gin.Context)
 	CsrfToken(c *gin.Context)
 	GetLoggedInUser(c *gin.Context)
+	GetHouseholdUsers(c *gin.Context)
 	UpdateUser(c *gin.Context)
 	DeleteUser(c *gin.Context)
 	ValidateCSRFToken(sessionID, token string) bool
@@ -159,4 +160,21 @@ func (uc *userController) DeleteUser(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func (uc *userController) GetHouseholdUsers(c *gin.Context) {
+	userClaims, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims := userClaims.(jwt.MapClaims)
+	userId := uint(claims["user_id"].(float64))
+
+	users, err := uc.uu.GetHouseholdUsers(userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, users)
 }

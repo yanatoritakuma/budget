@@ -24,6 +24,10 @@ export async function fetchLoginUser() {
     credentials: "include",
   });
 
+  if (!res.ok) {
+    return null;
+  }
+
   const user: TLoginUser = await res.json();
 
   return user;

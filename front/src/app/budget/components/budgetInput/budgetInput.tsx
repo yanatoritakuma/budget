@@ -5,13 +5,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createHeaders } from "@/utils/getCsrf";
 import { formattedDate } from "@/utils/formattedDate";
+import { TLoginUser } from "@/app/api/fetchLoginUser";
+import { SelectBox } from "@/components/elements/selectBox/selectBox";
+import { SelectChangeEvent } from "@mui/material/Select";
 import "./budgetInput.scss";
 
 type Props = {
-  userId: number;
+  loginUser: TLoginUser;
+  householdUsers: TLoginUser[];
 };
 
-export default function BudgetInput({ userId }: Props) {
+export default function BudgetInput({ loginUser, householdUsers }: Props) {
   const router = useRouter();
   const [budgetInput, setBudgetInput] = useState({
     amount: "",
@@ -19,14 +23,28 @@ export default function BudgetInput({ userId }: Props) {
     date: "",
     category: "",
     memo: "",
+    payerId: String(loginUser.id), // Default to the logged-in user
   });
   const [error, setError] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const payerOptions = householdUsers.map((user) => ({
+    value: user.id,
+    label: user.name,
+  }));
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setBudgetInput((prev) => ({
       ...prev,
       [name]: value,
+    }));
+  };
+
+  const handleSelectChange = (e: SelectChangeEvent<string | number>) => {
+    const { name, value } = e.target;
+    setBudgetInput((prev) => ({
+      ...prev,
+      [name]: String(value),
     }));
   };
 
@@ -36,9 +54,14 @@ export default function BudgetInput({ userId }: Props) {
 
     try {
       const amountNumber = parseInt(budgetInput.amount);
+      const payerIdNumber = parseInt(budgetInput.payerId);
 
       if (isNaN(amountNumber)) {
         setError("金額は有効な数値である必要があります");
+        return;
+      }
+      if (isNaN(payerIdNumber)) {
+        setError("有効な支払者が選択されていません");
         return;
       }
 
@@ -53,7 +76,7 @@ export default function BudgetInput({ userId }: Props) {
           date: formattedDate(budgetInput.date),
           category: budgetInput.category,
           memo: budgetInput.memo,
-          payer_id: userId, // Set payer_id to the logged-in user's ID
+          payer_id: payerIdNumber,
         }),
         credentials: "include",
       });
@@ -65,6 +88,7 @@ export default function BudgetInput({ userId }: Props) {
           date: "",
           category: "",
           memo: "",
+          payerId: String(loginUser.id),
         });
 
         router.push("/budget");
@@ -91,7 +115,7 @@ export default function BudgetInput({ userId }: Props) {
           type="number"
           name="amount"
           value={budgetInput.amount}
-          onChange={handleChange}
+          onChange={handleInputChange}
           placeholder="¥0"
           required
         />
@@ -101,7 +125,7 @@ export default function BudgetInput({ userId }: Props) {
           type="text"
           name="storeName"
           value={budgetInput.storeName}
-          onChange={handleChange}
+          onChange={handleInputChange}
           placeholder="店名を入力"
           required
         />
@@ -111,7 +135,7 @@ export default function BudgetInput({ userId }: Props) {
           type="date"
           name="date"
           value={budgetInput.date}
-          onChange={handleChange}
+          onChange={handleInputChange}
           required
         />
 
@@ -120,7 +144,7 @@ export default function BudgetInput({ userId }: Props) {
           type="text"
           name="category"
           value={budgetInput.category}
-          onChange={handleChange}
+          onChange={handleInputChange}
           placeholder="カテゴリーを入力"
           required
         />
@@ -130,8 +154,17 @@ export default function BudgetInput({ userId }: Props) {
           type="text"
           name="memo"
           value={budgetInput.memo}
-          onChange={handleChange}
+          onChange={handleInputChange}
           placeholder="メモを入力（任意）"
+        />
+
+        <SelectBox
+          label="支払った人"
+          name="payerId"
+          value={budgetInput.payerId}
+          onChange={handleSelectChange}
+          options={payerOptions}
+          required
         />
 
         <button type="submit" className="submit-button">

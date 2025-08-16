@@ -67,6 +67,13 @@ func NewRouter(
 		expenses.GET("", gin.HandlerFunc(ec.GetExpense))
 	}
 
+	// 世帯管理のエンドポイント（認証必要）
+	household := r.Group("/household")
+	household.Use(authMiddleware())
+	{
+		household.GET("/users", gin.HandlerFunc(uc.GetHouseholdUsers))
+	}
+
 	return r
 }
 

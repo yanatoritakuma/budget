@@ -14,6 +14,7 @@ type IUserRepository interface {
 	GetUserByID(user *model.User, id uint) error
 	UpdateUser(user *model.User, id uint) error
 	DeleteUser(id uint) error
+	GetUsersByHouseholdID(users *[]model.User, householdID uint) error
 }
 
 type userRepository struct {
@@ -67,6 +68,13 @@ func (ur *userRepository) DeleteUser(id uint) error {
 	}
 	if result.RowsAffected < 1 {
 		return fmt.Errorf("object does not exist")
+	}
+	return nil
+}
+
+func (ur *userRepository) GetUsersByHouseholdID(users *[]model.User, householdID uint) error {
+	if err := ur.db.Where("household_id = ?", householdID).Find(users).Error; err != nil {
+		return err
 	}
 	return nil
 }

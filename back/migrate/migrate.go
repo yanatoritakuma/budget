@@ -12,6 +12,7 @@ func main() {
 	defer fmt.Println("Successfully Migrated")
 	defer db.CloseDB(dbConn)
 	dbConn.AutoMigrate(
+		&model.Household{},
 		&model.User{},
 		&model.Expense{},
 	)

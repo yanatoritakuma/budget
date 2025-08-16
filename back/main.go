@@ -11,14 +11,17 @@ import (
 func main() {
 	db := db.NewDB()
 
-	// User関連の依存関係
+	// Repositories
 	userRepository := repository.NewUserRepository(db)
-	userUsecase := usecase.NewUserUsecase(userRepository)
-	userController := controller.NewUserController(userUsecase)
-
-	// Expense関連の依存関係
+	householdRepository := repository.NewHouseholdRepository(db)
 	expenseRepository := repository.NewExpenseRepository(db)
+
+	// Usecases
+	userUsecase := usecase.NewUserUsecase(userRepository, householdRepository)
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository)
+
+	// Controllers
+	userController := controller.NewUserController(userUsecase)
 	expenseController := controller.NewExpenseController(expenseUsecase)
 
 	r := router.NewRouter(userController, expenseController)
