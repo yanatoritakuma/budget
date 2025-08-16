@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createHeaders } from "@/utils/getCsrf";
 import { formattedDate } from "@/utils/formattedDate";
+import "./budgetInput.scss";
 
 export default function BudgetInput() {
   const router = useRouter();
@@ -77,11 +78,11 @@ export default function BudgetInput() {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="budget-input-form">
       <h2>予算入力</h2>
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+      {error && <p className="error-message">{error}</p>}
 
-      <div>
+      <div className="form-fields">
         <TextBox
           label="金額"
           type="number"
@@ -130,7 +131,9 @@ export default function BudgetInput() {
           placeholder="メモを入力（任意）"
         />
 
-        <button type="submit">登録する</button>
+        <button type="submit" className="submit-button">
+          登録する
+        </button>
       </div>
     </form>
   );

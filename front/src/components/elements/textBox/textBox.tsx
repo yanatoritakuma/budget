@@ -67,6 +67,7 @@ export const TextBox = memo(
             required={required}
             type={type}
             name={name}
+            {...(type === "date" && { InputLabelProps: { shrink: true } })}
           />
         ) : (
           <FormControl
