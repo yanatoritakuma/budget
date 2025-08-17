@@ -1,9 +1,14 @@
 import { fetchHouseholdUsers } from "@/app/api/fetchHouseholdUsers";
-import { TLoginUser } from "@/app/api/fetchLoginUser";
+import { fetchLoginUser, TLoginUser } from "@/app/api/fetchLoginUser";
 import HouseholdClientPage from "@/app/household/components/householdClientPage";
+import { redirect } from "next/navigation";
 import "./styles.scss";
 
 export default async function HouseholdPage() {
+  const loginUser = await fetchLoginUser();
+  if (!loginUser) {
+    redirect("/auth");
+  }
   // Fetching data on the server component
   const householdUsers: TLoginUser[] = await fetchHouseholdUsers();
 
