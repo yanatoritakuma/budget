@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/usecase"
 )
@@ -17,8 +17,11 @@ type IUserController interface {
 	LogOut(c *gin.Context)
 	CsrfToken(c *gin.Context)
 	GetLoggedInUser(c *gin.Context)
+	GetHouseholdUsers(c *gin.Context)
+	JoinHousehold(c *gin.Context)
 	UpdateUser(c *gin.Context)
 	DeleteUser(c *gin.Context)
+	ValidateCSRFToken(sessionID, token string) bool
 }
 
 type userController struct {
@@ -97,10 +100,27 @@ func (uc *userController) GetLoggedInUser(c *gin.Context) {
 }
 
 func (uc *userController) CsrfToken(c *gin.Context) {
-	token := c.GetHeader("X-CSRF-Token")
+	// セッションIDの取得
+	sessionID, err := c.Cookie("token")
+	if err != nil {
+		sessionID = "default" // フォールバック値
+	}
+
+	// 既存のトークンを取得または新しいトークンを生成
+	token, err := uc.uu.GetOrGenerateCSRFToken(sessionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to handle CSRF token"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"csrf_token": token,
 	})
+}
+
+// ValidateCSRFToken はCSRFトークンを検証します
+func (uc *userController) ValidateCSRFToken(sessionID, token string) bool {
+	return uc.uu.ValidateCSRFToken(sessionID, token)
 }
 
 func (uc *userController) UpdateUser(c *gin.Context) {
@@ -141,4 +161,48 @@ func (uc *userController) DeleteUser(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func (uc *userController) GetHouseholdUsers(c *gin.Context) {
+	userClaims, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims := userClaims.(jwt.MapClaims)
+	userId := uint(claims["user_id"].(float64))
+
+	users, err := uc.uu.GetHouseholdUsers(userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, users)
+}
+
+type JoinHouseholdRequest struct {
+	InviteCode string `json:"invite_code"`
+}
+
+func (uc *userController) JoinHousehold(c *gin.Context) {
+	userClaims, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims := userClaims.(jwt.MapClaims)
+	userId := uint(claims["user_id"].(float64))
+
+	var req JoinHouseholdRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	if err := uc.uu.JoinHousehold(userId, req.InviteCode); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }

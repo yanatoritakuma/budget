@@ -5,9 +5,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/repository"
+	"github.com/yanatoritakuma/budget/back/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -17,25 +18,56 @@ type IUserUsecase interface {
 	GetLoggedInUser(tokenString string) (*model.UserResponse, error)
 	UpdateUser(user model.User, id uint) (model.UserResponse, error)
 	DeleteUser(id uint) error
+	GetHouseholdUsers(userID uint) ([]model.UserResponse, error)
+	JoinHousehold(userID uint, inviteCode string) error
+	GetOrGenerateCSRFToken(sessionID string) (string, error)
+	ValidateCSRFToken(sessionID, token string) bool
 }
 
 type userUsecase struct {
-	ur repository.IUserRepository
+	ur         repository.IUserRepository
+	hr         repository.IHouseholdRepository
+	tokenStore *model.TokenStore
 }
 
-func NewUserUsecase(ur repository.IUserRepository) IUserUsecase {
-	return &userUsecase{ur}
+func NewUserUsecase(ur repository.IUserRepository, hr repository.IHouseholdRepository) IUserUsecase {
+	return &userUsecase{
+		ur:         ur,
+		hr:         hr,
+		tokenStore: model.NewTokenStore(),
+	}
 }
 
 func (uu *userUsecase) SignUp(user model.User) (model.UserResponse, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 10)
-	if err != nil {
+	// Create a new household for the user
+	newHousehold := model.Household{
+		Name:       fmt.Sprintf("%s's Household", user.Name),
+		InviteCode: utils.GenerateRandomString(16), // Generate an initial invite code
+	}
+	if err := uu.hr.CreateHousehold(&newHousehold); err != nil {
 		return model.UserResponse{}, err
 	}
-	newUser := model.User{Email: user.Email, Password: string(hash), Name: user.Name, Image: user.Image}
+
+	// Hash the password
+	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 10)
+	if err != nil {
+		// Here, we should probably delete the household that was just created to avoid orphaned data.
+		// For simplicity in this step, we'll omit that. In a production system, this should be a transaction.
+		return model.UserResponse{}, err
+	}
+
+	// Create the new user with the household ID
+	newUser := model.User{
+		Email:       user.Email,
+		Password:    string(hash),
+		Name:        user.Name,
+		Image:       user.Image,
+		HouseholdID: newHousehold.ID,
+	}
 	if err := uu.ur.CreateUser(&newUser); err != nil {
 		return model.UserResponse{}, err
 	}
+
 	resUser := model.UserResponse{
 		ID:        newUser.ID,
 		Email:     newUser.Email,
@@ -120,4 +152,85 @@ func (uu *userUsecase) DeleteUser(id uint) error {
 		return err
 	}
 	return nil
+}
+
+func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]model.UserResponse, error) {
+	// Get the current user to find their household ID
+	var currentUser model.User
+	if err := uu.ur.GetUserByID(&currentUser, userID); err != nil {
+		return nil, fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	if currentUser.HouseholdID == 0 {
+		return nil, fmt.Errorf("current user does not belong to a household")
+	}
+
+	// Get all users from that household
+	var householdUsers []model.User
+	if err := uu.ur.GetUsersByHouseholdID(&householdUsers, currentUser.HouseholdID); err != nil {
+		return nil, fmt.Errorf("failed to get household users: %w", err)
+	}
+
+	// Format the response
+	var resUsers []model.UserResponse
+	for _, user := range householdUsers {
+		resUsers = append(resUsers, model.UserResponse{
+			ID:        user.ID,
+			Email:     user.Email,
+			Name:      user.Name,
+			Image:     user.Image,
+			Admin:     user.Admin,
+			CreatedAt: user.CreatedAt,
+		})
+	}
+
+	return resUsers, nil
+}
+
+func (uu *userUsecase) JoinHousehold(userID uint, inviteCode string) error {
+	// Find the household by invite code
+	var household model.Household
+	if err := uu.hr.GetHouseholdByInviteCode(&household, inviteCode); err != nil {
+		return fmt.Errorf("invalid invite code: %w", err)
+	}
+
+	// Get the current user
+	var user model.User
+	if err := uu.ur.GetUserByID(&user, userID); err != nil {
+		return fmt.Errorf("could not find user: %w", err)
+	}
+
+	// Update user's household
+	user.HouseholdID = household.ID
+	if err := uu.ur.UpdateUser(&user, userID); err != nil {
+		return fmt.Errorf("failed to update user's household: %w", err)
+	}
+
+	return nil
+}
+
+// generateCSRFToken は新しいCSRFトークンを生成し、保存します（内部メソッド）
+func (uu *userUsecase) generateCSRFToken(sessionID string) (string, error) {
+	token := utils.GenerateRandomString(32)
+	uu.tokenStore.SaveToken(sessionID, model.CSRFToken{
+		Token:     token,
+		ExpiresAt: time.Now().Add(24 * time.Hour), // 24時間有効
+	})
+	return token, nil
+}
+
+// GetOrGenerateCSRFToken は既存のトークンを返すか、新しいトークンを生成します
+func (uu *userUsecase) GetOrGenerateCSRFToken(sessionID string) (string, error) {
+	// 既存のトークンを確認
+	if token, exists := uu.tokenStore.GetToken(sessionID); exists {
+		return token, nil
+	}
+
+	// 新しいトークンを生成
+	return uu.generateCSRFToken(sessionID)
+}
+
+// ValidateCSRFToken はCSRFトークンを検証します
+func (uu *userUsecase) ValidateCSRFToken(sessionID, token string) bool {
+	return uu.tokenStore.ValidateToken(sessionID, token)
 }

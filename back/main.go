@@ -10,10 +10,22 @@ import (
 
 func main() {
 	db := db.NewDB()
-	userRepository := repository.NewUserRepository(db)
-	userUsecase := usecase.NewUserUsecase(userRepository)
-	userController := controller.NewUserController(userUsecase)
 
-	r := router.NewRouter(userController)
+	// Repositories
+	userRepository := repository.NewUserRepository(db)
+	householdRepository := repository.NewHouseholdRepository(db)
+	expenseRepository := repository.NewExpenseRepository(db)
+
+	// Usecases
+	userUsecase := usecase.NewUserUsecase(userRepository, householdRepository)
+	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository, userRepository)
+	householdUsecase := usecase.NewHouseholdUsecase(householdRepository, userRepository)
+
+	// Controllers
+	userController := controller.NewUserController(userUsecase)
+	expenseController := controller.NewExpenseController(expenseUsecase)
+	householdController := controller.NewHouseholdController(householdUsecase)
+
+	r := router.NewRouter(userController, expenseController, householdController)
 	r.Run(":8080")
 }
