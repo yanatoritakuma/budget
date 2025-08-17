@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { fetchBudgetList } from "@/app/api/fetchBudgetList";
 import "./styles.scss";
 import { formatDateForDisplay } from "@/utils/formatDateForDisplay";
+import { ButtonBox } from "@/components/elements/buttonBox/buttonBox";
 
 export default async function BudgetList() {
   // 現在の日付を取得
@@ -16,7 +17,15 @@ export default async function BudgetList() {
 
   return (
     <div className="budget-list-container">
-      <h2 className="budget-list-title">今月の支出一覧</h2>
+      <div className="budget-list-header">
+        <ButtonBox variant="outlined" size="small">
+          &lt; 先月
+        </ButtonBox>
+        <h2 className="budget-list-title">{`${currentYear}年${currentMonth}月 の支出一覧`}</h2>
+        <ButtonBox variant="outlined" size="small">
+          来月 &gt;
+        </ButtonBox>
+      </div>
       <Suspense fallback={<div className="loading-message">読み込み中...</div>}>
         {expenses?.length > 0 ? (
           expenses.map((expense) => (
@@ -39,7 +48,7 @@ export default async function BudgetList() {
             </div>
           ))
         ) : (
-          <p className="empty-message">今月の支出はまだありません。</p>
+          <p className="empty-message">{`${currentYear}年${currentMonth}月の支出はまだありません。`}</p>
         )}
       </Suspense>
     </div>
