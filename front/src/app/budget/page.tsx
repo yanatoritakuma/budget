@@ -4,8 +4,17 @@ import BudgetInput from "@/app/budget/components/budgetInput/budgetInput";
 import Link from "next/link";
 import BudgetList from "@/app/budget/components/budgetList/budgetList";
 import { fetchHouseholdUsers } from "@/app/api/fetchHouseholdUsers";
+import { fetchBudgetList } from "@/app/api/fetchBudgetList";
+import { Expense } from "@/types/expense";
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: {
+    year?: string;
+    month?: string;
+  };
+}) {
   const loginUser = await fetchLoginUser();
 
   if (!loginUser) {
@@ -25,6 +34,16 @@ export default async function Page() {
   // Only fetch household users if the user is logged in
   const householdUsers = await fetchHouseholdUsers();
 
+  const currentDate = new Date();
+  const year = searchParams?.year
+    ? parseInt(searchParams.year)
+    : currentDate.getFullYear();
+  const month = searchParams?.month
+    ? parseInt(searchParams.month)
+    : currentDate.getMonth() + 1;
+
+  const expenses: Expense[] | null = await fetchBudgetList({ year, month });
+
   return (
     <main className="pageBox">
       <h2>家計簿</h2>
@@ -32,7 +51,7 @@ export default async function Page() {
         <Link href="/household">世帯管理へ</Link>
       </div>
       <BudgetInput loginUser={loginUser} householdUsers={householdUsers} />
-      <BudgetList />
+      <BudgetList expenses={expenses} />
     </main>
   );
 }

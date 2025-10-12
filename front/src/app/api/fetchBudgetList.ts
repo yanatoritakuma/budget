@@ -1,4 +1,5 @@
 import { Expense } from "@/types/expense";
+import { cookies } from "next/headers";
 
 type FetchBudgetListParams = {
   year: number;
@@ -18,15 +19,17 @@ export async function fetchBudgetList({
     params.append("category", category);
   }
 
+  const cookieStore = cookies();
+  const cookie = cookieStore.toString();
+
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/expenses?${params.toString()}`,
     {
       method: "GET",
       headers: {
-        // No need to set Cookie header manually on the client
+        Cookie: cookie,
       },
       cache: "no-store",
-      credentials: "include", // This sends cookies automatically
     }
   );
 

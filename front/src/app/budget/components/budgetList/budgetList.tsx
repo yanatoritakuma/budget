@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { fetchBudgetList } from "@/app/api/fetchBudgetList";
 import { Expense } from "@/types/expense";
 import { formatDateForDisplay } from "@/utils/formatDateForDisplay";
 import { ButtonBox } from "@/components/elements/buttonBox/buttonBox";
 import "./styles.scss";
 
-function BudgetListComponent() {
+type BudgetListComponentProps = {
+  expenses: Expense[] | null;
+};
+
+function BudgetListComponent({ expenses }: BudgetListComponentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const getInitialDate = () => {
     const year = searchParams.get("year");
     const month = searchParams.get("month");
@@ -23,8 +26,6 @@ function BudgetListComponent() {
   };
 
   const [currentDate, setCurrentDate] = useState(getInitialDate());
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -32,42 +33,29 @@ function BudgetListComponent() {
   const updateURL = (newDate: Date) => {
     const newYear = newDate.getFullYear();
     const newMonth = newDate.getMonth() + 1;
-    // Use router.push to update the URL without a full page reload
     router.push(`?year=${newYear}&month=${newMonth}`);
   };
 
-  const fetchExpenses = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const fetchedExpenses = await fetchBudgetList({ year, month });
-      setExpenses(fetchedExpenses || []);
-    } catch (error) {
-      console.error("Failed to fetch expenses:", error);
-      setExpenses([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [year, month]);
-
   useEffect(() => {
-    // This effect syncs the component state with the URL's query params.
-    // It runs when the component mounts and whenever the searchParams change.
     const newDate = getInitialDate();
     setCurrentDate(newDate);
   }, [searchParams]);
 
-  useEffect(() => {
-    // This effect fetches the data whenever the date changes.
-    fetchExpenses();
-  }, [currentDate, fetchExpenses]);
-
   const handlePrevMonth = () => {
-    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const newDate = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() - 1,
+      1
+    );
     updateURL(newDate);
   };
 
   const handleNextMonth = () => {
-    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    const newDate = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 1,
+      1
+    );
     updateURL(newDate);
   };
 
@@ -82,9 +70,7 @@ function BudgetListComponent() {
           来月 &gt;
         </ButtonBox>
       </div>
-      {isLoading ? (
-        <div className="loading-message">読み込み中...</div>
-      ) : expenses.length > 0 ? (
+      {expenses && expenses.length > 0 ? (
         expenses.map((expense) => (
           <div key={expense.id} className="expense-item">
             <div className="expense-details">
@@ -111,12 +97,14 @@ function BudgetListComponent() {
   );
 }
 
-// Since searchParams can only be used in a Client Component,
-// and we want to use it with Suspense, we wrap it like this.
-export default function BudgetList() {
+type BudgetListProps = {
+  expenses: Expense[] | null;
+};
+
+export default function BudgetList({ expenses }: BudgetListProps) {
   return (
     <Suspense fallback={<div className="loading-message">読み込み中...</div>}>
-      <BudgetListComponent />
+      <BudgetListComponent expenses={expenses} />
     </Suspense>
   );
 }
