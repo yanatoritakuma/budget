@@ -1,10 +1,11 @@
-export type ExpenseResponse = {
+export type Expense = {
   id: number;
-  userId: number;
+  user_id: number;
   amount: number;
-  storeName: string;
+  store_name: string;
   date: string;
   category: string;
   memo: string;
-  createdAt: string;
+  created_at: string;
+  payer_name?: string;
 };

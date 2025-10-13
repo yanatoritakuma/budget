@@ -4,12 +4,18 @@
   padding: 0 1rem;
 }
 
+.budget-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
 .budget-list-title {
   font-size: 1.8rem;
   font-weight: bold;
-  margin-bottom: 1.5rem;
   color: #333;
-  text-align: center;
+  margin: 0; /* Reset margin */
 }
 
 .expense-item {

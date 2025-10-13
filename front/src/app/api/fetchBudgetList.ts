@@ -1,4 +1,5 @@
-import { headers } from "next/headers";
+import { Expense } from "@/types/expense";
+import { cookies } from "next/headers";
 
 type FetchBudgetListParams = {
   year: number;
@@ -6,46 +7,37 @@ type FetchBudgetListParams = {
   category?: string;
 };
 
-type ExpenseResponse = {
-  amount: number;
-  category: Date;
-  created_at: Date;
-  date: string;
-  id: number;
-  memo: string;
-  store_name: string;
-  user_id: number;
-  payer_name?: string; // Add optional payer_name
-};
-
 export async function fetchBudgetList({
   year,
   month,
   category,
-}: FetchBudgetListParams) {
-  const headersList = await headers();
-  const token = headersList.get("cookie");
+}: FetchBudgetListParams): Promise<Expense[]> {
   const params = new URLSearchParams();
   params.append("year", year.toString());
   params.append("month", month.toString());
   if (category) {
     params.append("category", category);
   }
+
+  const cookieStore = cookies();
+  const cookie = cookieStore.toString();
+
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/expenses?${params.toString()}`,
     {
       method: "GET",
       headers: {
-        ...headers,
-        Cookie: `${token}`,
+        Cookie: cookie,
       },
       cache: "no-store",
-      // cache: "force-cache",
-      credentials: "include",
     }
   );
 
-  const resJson: ExpenseResponse[] = await res.json();
+  if (!res.ok) {
+    throw new Error("Failed to fetch budget list");
+  }
+
+  const resJson: Expense[] = await res.json();
 
   return resJson;
 }

@@ -1,4 +1,4 @@
-FROM golang:1.20.2 AS builder
+FROM golang:1.22 AS builder
 
 # 作業ディレクトリを作成
 RUN mkdir /app
