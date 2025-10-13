@@ -230,6 +230,7 @@ export default function BudgetInput({ loginUser, householdUsers }: Props) {
           id="receipt-upload"
           type="file"
           accept="image/*"
+          capture="environment"
           onChange={handleFileChange}
           disabled={isScanning}
         />
