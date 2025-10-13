@@ -25,6 +25,7 @@ export default function BudgetInput({ loginUser, householdUsers }: Props) {
     memo: "",
     payerId: String(loginUser.id), // Default to the logged-in user
   });
+
   const [error, setError] = useState("");
   const [isScanning, setIsScanning] = useState(false);
 
@@ -116,11 +117,24 @@ export default function BudgetInput({ loginUser, householdUsers }: Props) {
 
           if (finalResult.status === "done" && finalResult.result) {
             const { establishment, total, date } = finalResult.result;
+
+            // Format date to YYYY-MM-DD
+            let formattedScanDate = "";
+            if (date && typeof date === "string") {
+              formattedScanDate = date.split(" ")[0];
+            }
+
+            // Format amount by removing decimals
+            let formattedAmount = "";
+            if (total) {
+              formattedAmount = String(total).replace(".", "");
+            }
+
             setBudgetInput((prev) => ({
               ...prev,
-              amount: total || prev.amount,
+              amount: formattedAmount || prev.amount,
               storeName: establishment || prev.storeName,
-              date: date || prev.date,
+              date: formattedScanDate || prev.date,
             }));
           } else {
             throw new Error(
