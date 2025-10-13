@@ -18,9 +18,7 @@ services:
     depends_on:
       - db
     environment:
-      DB_USER: root
-      DB_PASSWORD: password
-      DB_NAME: budget-db
+      DATABASE_URL: postgres://yanatori:yanatori@db:5432/budget-db?sslmode=disable
     networks:
       - backend
 networks:
