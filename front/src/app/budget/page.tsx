@@ -7,8 +7,15 @@ import { fetchHouseholdUsers } from "@/app/api/fetchHouseholdUsers";
 import { fetchBudgetList } from "@/app/api/fetchBudgetList";
 import { Expense } from "@/types/expense";
 
-export default async function Page(props: Promise<{ searchParams?: { year?: string; month?: string; } }>) {
-  const { searchParams } = await props;
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    year?: string;
+    month?: string;
+  }>;
+}) {
+  const resolvedSearchParams = await searchParams;
   const loginUser = await fetchLoginUser();
 
   if (!loginUser) {
@@ -29,11 +36,11 @@ export default async function Page(props: Promise<{ searchParams?: { year?: stri
   const householdUsers = await fetchHouseholdUsers();
 
   const currentDate = new Date();
-  const year = searchParams?.year
-    ? parseInt(searchParams.year)
+  const year = resolvedSearchParams?.year
+    ? parseInt(resolvedSearchParams.year)
     : currentDate.getFullYear();
-  const month = searchParams?.month
-    ? parseInt(searchParams.month)
+  const month = resolvedSearchParams?.month
+    ? parseInt(resolvedSearchParams.month)
     : currentDate.getMonth() + 1;
 
   const expenses: Expense[] | null = await fetchBudgetList({ year, month });
