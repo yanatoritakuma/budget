@@ -8,10 +8,8 @@ import { fetchBudgetList } from "@/app/api/fetchBudgetList";
 import { Expense } from "@/types/expense";
 
 type PageProps = {
-  searchParams?: {
-    year?: string;
-    month?: string;
-  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  searchParams?: any;
 };
 
 export default async function Page({ searchParams }: PageProps) {
