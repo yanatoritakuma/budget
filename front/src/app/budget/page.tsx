@@ -7,14 +7,14 @@ import { fetchHouseholdUsers } from "@/app/api/fetchHouseholdUsers";
 import { fetchBudgetList } from "@/app/api/fetchBudgetList";
 import { Expense } from "@/types/expense";
 
-export default async function Page({
-  searchParams,
-}: {
+type PageProps = {
   searchParams?: {
     year?: string;
     month?: string;
   };
-}) {
+};
+
+export default async function Page({ searchParams }: PageProps) {
   const loginUser = await fetchLoginUser();
 
   if (!loginUser) {
