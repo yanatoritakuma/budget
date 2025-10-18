@@ -10,11 +10,12 @@ import { Expense } from "@/types/expense";
 export default async function Page({
   searchParams,
 }: {
-  searchParams?: {
+  searchParams?: Promise<{
     year?: string;
     month?: string;
-  };
+  }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const loginUser = await fetchLoginUser();
 
   if (!loginUser) {
@@ -35,11 +36,11 @@ export default async function Page({
   const householdUsers = await fetchHouseholdUsers();
 
   const currentDate = new Date();
-  const year = searchParams?.year
-    ? parseInt(searchParams.year)
+  const year = resolvedSearchParams?.year
+    ? parseInt(resolvedSearchParams.year)
     : currentDate.getFullYear();
-  const month = searchParams?.month
-    ? parseInt(searchParams.month)
+  const month = resolvedSearchParams?.month
+    ? parseInt(resolvedSearchParams.month)
     : currentDate.getMonth() + 1;
 
   const expenses: Expense[] | null = await fetchBudgetList({ year, month });
