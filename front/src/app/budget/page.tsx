@@ -7,12 +7,8 @@ import { fetchHouseholdUsers } from "@/app/api/fetchHouseholdUsers";
 import { fetchBudgetList } from "@/app/api/fetchBudgetList";
 import { Expense } from "@/types/expense";
 
-type PageProps = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  searchParams?: any;
-};
-
-export default async function Page({ searchParams }: PageProps) {
+export default async function Page(props: Promise<{ searchParams?: { year?: string; month?: string; } }>) {
+  const { searchParams } = await props;
   const loginUser = await fetchLoginUser();
 
   if (!loginUser) {
