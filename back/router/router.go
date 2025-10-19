@@ -13,7 +13,7 @@ import (
 func NewRouter(
 	uc controller.IUserController,
 	ec controller.IExpenseController,
-	hc controller.IHouseholdController, // Added
+	hc controller.IHouseholdController,
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
@@ -31,7 +31,7 @@ func NewRouter(
 		AllowCredentials: true,
 	}))
 
-	// CSRFの設定
+	// CSRFヘッダー設定
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", os.Getenv("FE_URL"))
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -42,16 +42,21 @@ func NewRouter(
 		c.Next()
 	})
 
+
 	// CSRF保護を適用
 	r.Use(csrfMiddleware(uc))
 
-	// 認証不要なエンドポイント
+	// -------------------------
+	// 認証不要ルート
+	// -------------------------
 	r.POST("/signup", gin.HandlerFunc(uc.SignUp))
 	r.POST("/login", gin.HandlerFunc(uc.LogIn))
 	r.POST("/logout", gin.HandlerFunc(uc.LogOut))
 	r.GET("/csrf", gin.HandlerFunc(uc.CsrfToken))
 
-	// 認証が必要なエンドポイント
+	// -------------------------
+	// 認証必須ルート
+	// -------------------------
 	auth := r.Group("/user")
 	auth.Use(authMiddleware())
 	{
@@ -77,24 +82,13 @@ func NewRouter(
 		household.POST("/join", gin.HandlerFunc(uc.JoinHousehold))
 	}
 
-	r.NoRoute(func(c *gin.Context) {
-		path := c.Request.URL.Path
-
-		// /prod/... で始まっている場合は /prod を削除して再処理
-		if len(path) > 5 && path[:6] == "/prod/" {
-			c.Request.URL.Path = path[5:] // "/prod" を除去
-			r.HandleContext(c)
-			return
-		}
-
-		// それ以外は通常の404
-		c.JSON(http.StatusNotFound, gin.H{"error": "リクエストが見つかりません。"})
-	})
 
 	return r
 }
 
-// ... (csrfMiddleware and authMiddleware are ok)
+// ==========================
+// CSRF Middleware
+// ==========================
 func csrfMiddleware(uc controller.IUserController) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method == "GET" || c.Request.Method == "OPTIONS" {
@@ -120,6 +114,9 @@ func csrfMiddleware(uc controller.IUserController) gin.HandlerFunc {
 	}
 }
 
+// ==========================
+// Auth Middleware
+// ==========================
 func authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cookie, err := c.Cookie("token")
