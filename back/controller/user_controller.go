@@ -58,28 +58,30 @@ func (uc *userController) LogIn(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie(
-		"token",
-		tokenString,
-		int(time.Hour*24/time.Second), // MaxAge in seconds
-		"/",
-		os.Getenv("API_DOMAIN"),
-		true, // secure
-		true, // httpOnly
-	)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "token",
+		Value:    tokenString,
+		MaxAge:   int(time.Hour * 24 / time.Second),
+		Path:     "/",
+		Domain:   os.Getenv("API_DOMAIN"),
+		SameSite: http.SameSiteNoneMode,
+		Secure:   true,
+		HttpOnly: true,
+	})
 	c.Status(http.StatusOK)
 }
 
 func (uc *userController) LogOut(c *gin.Context) {
-	c.SetCookie(
-		"token",
-		"",
-		-1, // MaxAge = -1 means delete cookie
-		"/",
-		os.Getenv("API_DOMAIN"),
-		true,
-		true,
-	)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "token",
+		Value:    "",
+		MaxAge:   -1,
+		Path:     "/",
+		Domain:   os.Getenv("API_DOMAIN"),
+		SameSite: http.SameSiteNoneMode,
+		Secure:   true,
+		HttpOnly: true,
+	})
 	c.Status(http.StatusOK)
 }
 
@@ -112,6 +114,17 @@ func (uc *userController) CsrfToken(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to handle CSRF token"})
 		return
 	}
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "csrf_token",
+		Value:    token,
+		MaxAge:   int(time.Hour / time.Second),
+		Path:     "/",
+		Domain:   os.Getenv("API_DOMAIN"),
+		SameSite: http.SameSiteNoneMode,
+		Secure:   true,
+		HttpOnly: false,
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"csrf_token": token,
