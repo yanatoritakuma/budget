@@ -14,12 +14,3 @@ type User struct {
 	HouseholdID uint      `json:"household_id" gorm:"not null"`
 	Household   Household `json:"household" gorm:"foreignKey:HouseholdID;references:ID;constraint:OnDelete:CASCADE"`
 }
-
-type UserResponse struct {
-	ID        uint      `json:"id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	Image     string    `json:"image"`
-	Admin     bool      `json:"admin"`
-	CreatedAt time.Time `json:"created_at"`
-}

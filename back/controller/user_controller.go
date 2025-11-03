@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/yanatoritakuma/budget/back/internal/api"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/usecase"
 )
@@ -33,7 +34,7 @@ func NewUserController(uu usecase.IUserUsecase) IUserController {
 }
 
 func (uc *userController) SignUp(c *gin.Context) {
-	user := model.User{}
+	user := api.SignUpRequest{}
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -47,7 +48,7 @@ func (uc *userController) SignUp(c *gin.Context) {
 }
 
 func (uc *userController) LogIn(c *gin.Context) {
-	user := model.User{}
+	user := api.SignUpRequest{}
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -193,6 +194,7 @@ func (uc *userController) GetHouseholdUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
+
 type JoinHouseholdRequest struct {
 	InviteCode string `json:"invite_code"`
 }
@@ -219,3 +221,4 @@ func (uc *userController) JoinHousehold(c *gin.Context) {
 
 	c.Status(http.StatusOK)
 }
+
