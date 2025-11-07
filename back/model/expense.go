@@ -16,15 +16,3 @@ type Expense struct {
 	PayerID   *uint     `json:"payer_id"`
 	Payer     User      `json:"payer" gorm:"foreignKey:PayerID;references:ID;constraint:OnDelete:SET NULL"`
 }
-
-type ExpenseResponse struct {
-	ID        uint      `json:"id"`
-	UserID    uint      `json:"user_id"`
-	Amount    int       `json:"amount"`
-	StoreName string    `json:"store_name"`
-	Date      time.Time `json:"date"`
-	Category  string    `json:"category"`
-	Memo      string    `json:"memo"`
-	CreatedAt time.Time `json:"created_at"`
-	PayerName *string   `json:"payer_name"`
-}
