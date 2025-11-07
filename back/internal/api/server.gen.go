@@ -8,10 +8,17 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
 )
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Get expenses
+	// (GET /expenses)
+	GetExpenses(w http.ResponseWriter, r *http.Request, params GetExpensesParams)
+	// Create a new expense
+	// (POST /expenses)
+	PostExpenses(w http.ResponseWriter, r *http.Request)
 	// User registration
 	// (POST /signup)
 	PostSignup(w http.ResponseWriter, r *http.Request)
@@ -20,6 +27,18 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// Get expenses
+// (GET /expenses)
+func (_ Unimplemented) GetExpenses(w http.ResponseWriter, r *http.Request, params GetExpensesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create a new expense
+// (POST /expenses)
+func (_ Unimplemented) PostExpenses(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // User registration
 // (POST /signup)
@@ -35,6 +54,77 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// GetExpenses operation middleware
+func (siw *ServerInterfaceWrapper) GetExpenses(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetExpensesParams
+
+	// ------------- Required query parameter "year" -------------
+
+	if paramValue := r.URL.Query().Get("year"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "year"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "year", r.URL.Query(), &params.Year)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "year", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "month" -------------
+
+	if paramValue := r.URL.Query().Get("month"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "month"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "month", r.URL.Query(), &params.Month)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "month", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "category" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "category", r.URL.Query(), &params.Category)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "category", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetExpenses(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostExpenses operation middleware
+func (siw *ServerInterfaceWrapper) PostExpenses(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostExpenses(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // PostSignup operation middleware
 func (siw *ServerInterfaceWrapper) PostSignup(w http.ResponseWriter, r *http.Request) {
@@ -163,6 +253,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/expenses", wrapper.GetExpenses)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/expenses", wrapper.PostExpenses)
+	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/signup", wrapper.PostSignup)
 	})

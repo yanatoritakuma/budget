@@ -26,6 +26,62 @@ paths:
           description: Invalid input
         '500':
           description: Internal server error
+  /expenses:
+    post:
+      tags:
+        - expense
+      summary: Create a new expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseRequest'
+      responses:
+        '201':
+          description: Expense created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseResponse'
+        '400':
+          description: Invalid input
+        '500':
+          description: Internal server error
+    get:
+      tags:
+        - expense
+      summary: Get expenses
+      parameters:
+        - in: query
+          name: year
+          schema:
+            type: integer
+          required: true
+          description: Year to filter expenses
+        - in: query
+          name: month
+          schema:
+            type: integer
+          required: true
+          description: Month to filter expenses
+        - in: query
+          name: category
+          schema:
+            type: string
+          required: false
+          description: Category to filter expenses
+      responses:
+        '200':
+          description: List of expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseResponse'
+        '500':
+          description: Internal server error
 components:
   schemas:
     SignUpRequest:
@@ -68,3 +124,56 @@ components:
         created_at:
           type: string
           format: date-time
+    ExpenseResponse:
+      type: object
+      required:
+        - id
+        - user_id
+        - amount
+        - store_name
+        - date
+        - category
+        - created_at
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        amount:
+          type: integer
+        store_name:
+          type: string
+        date:
+          type: string
+          format: date-time
+        category:
+          type: string
+        memo:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        payer_name:
+          type: string
+    ExpenseRequest:
+      type: object
+      required:
+        - amount
+        - store_name
+        - date
+        - category
+        - user_id
+      properties:
+        amount:
+          type: integer
+        store_name:
+          type: string
+        date:
+          type: string
+          format: date-time
+        category:
+          type: string
+        memo:
+          type: string
+        user_id:
+          type: integer
