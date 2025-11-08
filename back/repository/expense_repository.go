@@ -27,9 +27,9 @@ func (er *expenseRepository) CreateExpense(expense *model.Expense) error {
 
 func (er *expenseRepository) GetExpense(householdID uint, year int, month int, category *string) ([]model.Expense, error) {
 	var expenses []model.Expense
-	// Join with users table to filter by household_id
-	query := er.db.Joins("JOIN users ON users.id = expenses.user_id").
-		Where("users.household_id = ?", householdID).
+	// Join with user table to filter by household_id
+	query := er.db.Joins(`JOIN "user" ON "user".id = expenses.user_id`).
+		Where(`"user".household_id = ?`, householdID).
 		Where("EXTRACT(YEAR FROM date) = ? AND EXTRACT(MONTH FROM date) = ?", year, month)
 
 	if category != nil && *category != "" {
