@@ -1,13 +1,14 @@
 package usecase
 
 import (
+	"github.com/yanatoritakuma/budget/back/internal/api"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/repository"
 )
 
 type IExpenseUsecase interface {
-	CreateExpense(expense model.Expense) (model.ExpenseResponse, error)
-	GetExpense(userID uint, year int, month int, category *string) ([]model.ExpenseResponse, error)
+	CreateExpense(expense model.Expense) (api.ExpenseResponse, error)
+	GetExpense(userID uint, year int, month int, category *string) ([]api.ExpenseResponse, error)
 }
 
 type expenseUsecase struct {
@@ -19,26 +20,26 @@ func NewExpenseUsecase(er repository.IExpenseRepository, ur repository.IUserRepo
 	return &expenseUsecase{er: er, ur: ur}
 }
 
-func (eu *expenseUsecase) CreateExpense(expense model.Expense) (model.ExpenseResponse, error) {
+func (eu *expenseUsecase) CreateExpense(expense model.Expense) (api.ExpenseResponse, error) {
 	if err := eu.er.CreateExpense(&expense); err != nil {
-		return model.ExpenseResponse{}, err
+		return api.ExpenseResponse{}, err
 	}
 
-	resExpense := model.ExpenseResponse{
-		ID:        expense.ID,
-		UserID:    expense.UserID,
+	resExpense := api.ExpenseResponse{
+		Id:        int(expense.ID),
+		UserId:    int(expense.UserID),
 		Amount:    expense.Amount,
 		StoreName: expense.StoreName,
 		Date:      expense.Date,
 		Category:  expense.Category,
-		Memo:      expense.Memo,
+		Memo:      &expense.Memo,
 		CreatedAt: expense.CreatedAt,
 	}
 
 	return resExpense, nil
 }
 
-func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category *string) ([]model.ExpenseResponse, error) {
+func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category *string) ([]api.ExpenseResponse, error) {
 	// Get user to find their household ID
 	var user model.User
 	if err := eu.ur.GetUserByID(&user, userID); err != nil {
@@ -50,7 +51,7 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 		return nil, err
 	}
 
-	var expenseResponses []model.ExpenseResponse
+	var expenseResponses []api.ExpenseResponse
 	for _, expense := range expenses {
 		var payerName *string
 		if expense.PayerID != nil {
@@ -60,14 +61,14 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 			}
 		}
 
-		expenseResponse := model.ExpenseResponse{
-			ID:        expense.ID,
-			UserID:    expense.UserID,
+		expenseResponse := api.ExpenseResponse{
+			Id:        int(expense.ID),
+			UserId:    int(expense.UserID),
 			Amount:    expense.Amount,
 			StoreName: expense.StoreName,
 			Date:      expense.Date,
 			Category:  expense.Category,
-			Memo:      expense.Memo,
+			Memo:      &expense.Memo,
 			CreatedAt: expense.CreatedAt,
 			PayerName: payerName,
 		}

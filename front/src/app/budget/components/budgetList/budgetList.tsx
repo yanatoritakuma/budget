@@ -2,13 +2,13 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Expense } from "@/types/expense";
+import { components } from "@/types/api";
 import { formatDateForDisplay } from "@/utils/formatDateForDisplay";
 import { ButtonBox } from "@/components/elements/buttonBox/buttonBox";
 import "./styles.scss";
 
 type BudgetListComponentProps = {
-  expenses: Expense[] | null;
+  expenses: components["schemas"]["ExpenseResponse"][] | null;
 };
 
 function BudgetListComponent({ expenses }: BudgetListComponentProps) {
@@ -98,7 +98,7 @@ function BudgetListComponent({ expenses }: BudgetListComponentProps) {
 }
 
 type BudgetListProps = {
-  expenses: Expense[] | null;
+  expenses: components["schemas"]["ExpenseResponse"][] | null;
 };
 
 export default function BudgetList({ expenses }: BudgetListProps) {

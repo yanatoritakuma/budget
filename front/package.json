@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "generate:api": "openapi-typescript ../back/openapi.yaml -o src/types/api.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -28,6 +29,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.4.2",
+    "openapi-typescript": "^7.10.1",
     "typescript": "^5"
   }
 }

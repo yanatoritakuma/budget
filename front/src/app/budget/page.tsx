@@ -5,7 +5,7 @@ import Link from "next/link";
 import BudgetList from "@/app/budget/components/budgetList/budgetList";
 import { fetchHouseholdUsers } from "@/app/api/fetchHouseholdUsers";
 import { fetchBudgetList } from "@/app/api/fetchBudgetList";
-import { Expense } from "@/types/expense";
+import { components } from "@/types/api";
 
 export default async function Page({
   searchParams,
@@ -43,7 +43,7 @@ export default async function Page({
     ? parseInt(resolvedSearchParams.month)
     : currentDate.getMonth() + 1;
 
-  const expenses: Expense[] | null = await fetchBudgetList({ year, month });
+  const expenses: components["schemas"]["ExpenseResponse"][] | null = await fetchBudgetList({ year, month });
 
   return (
     <main className="pageBox">

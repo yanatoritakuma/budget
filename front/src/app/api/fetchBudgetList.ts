@@ -1,4 +1,4 @@
-import { Expense } from "@/types/expense";
+import { components } from "@/types/api";
 import { cookies } from "next/headers";
 
 type FetchBudgetListParams = {
@@ -11,7 +11,7 @@ export async function fetchBudgetList({
   year,
   month,
   category,
-}: FetchBudgetListParams): Promise<Expense[]> {
+}: FetchBudgetListParams): Promise<components["schemas"]["ExpenseResponse"][]> {
   const params = new URLSearchParams();
   params.append("year", year.toString());
   params.append("month", month.toString());
@@ -37,7 +37,7 @@ export async function fetchBudgetList({
     throw new Error("Failed to fetch budget list");
   }
 
-  const resJson: Expense[] = await res.json();
+  const resJson: components["schemas"]["ExpenseResponse"][] = await res.json();
 
   return resJson;
 }
