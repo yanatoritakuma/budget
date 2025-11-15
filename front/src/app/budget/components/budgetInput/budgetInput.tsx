@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createHeaders } from "@/utils/getCsrf";
 import { formattedDate } from "@/utils/formattedDate";
+import { getCurrentDateFormatted } from "@/utils/getCurrentDateFormatted";
 import { TLoginUser } from "@/app/api/fetchLoginUser";
 import { SelectBox } from "@/components/elements/selectBox/selectBox";
 import { SelectChangeEvent } from "@mui/material/Select";
@@ -20,7 +21,7 @@ export default function BudgetInput({ loginUser, householdUsers }: Props) {
   const [budgetInput, setBudgetInput] = useState({
     amount: "",
     storeName: "",
-    date: "",
+    date: getCurrentDateFormatted(),
     category: "",
     memo: "",
     payerId: String(loginUser.id), // Default to the logged-in user
