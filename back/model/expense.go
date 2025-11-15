@@ -13,6 +13,5 @@ type Expense struct {
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	UserID    uint      `json:"user_id" gorm:"not null"`
 	User      User      `json:"user" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
-	PayerID   *uint     `json:"payer_id"`
-	Payer     User      `json:"payer" gorm:"foreignKey:PayerID;references:ID;constraint:OnDelete:SET NULL"`
+	PayerID   uint      `json:"payer_id" gorm:"not null"`
 }

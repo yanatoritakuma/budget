@@ -14,3 +14,8 @@ type User struct {
 	HouseholdID uint      `json:"household_id" gorm:"not null"`
 	Household   Household `json:"household" gorm:"foreignKey:HouseholdID;references:ID;constraint:OnDelete:CASCADE"`
 }
+
+// テーブル名を user に設定
+func (User) TableName() string {
+	return "user"
+}
