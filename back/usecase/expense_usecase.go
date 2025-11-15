@@ -54,9 +54,12 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 	var expenseResponses []api.ExpenseResponse
 	for _, expense := range expenses {
 
+		var payerName string
 		var user model.User
 		if err := eu.ur.GetUserByID(&user, expense.PayerID); err != nil {
-			return nil, err
+			payerName = "不明"
+		} else {
+			payerName = user.Name
 		}
 
 		expenseResponse := api.ExpenseResponse{
@@ -68,7 +71,7 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 			Category:  expense.Category,
 			Memo:      &expense.Memo,
 			CreatedAt: expense.CreatedAt,
-			PayerName: &user.Name,
+			PayerName: &payerName,
 		}
 		expenseResponses = append(expenseResponses, expenseResponse)
 	}
