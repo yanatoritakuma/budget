@@ -36,8 +36,7 @@ func (er *expenseRepository) GetExpense(householdID uint, year int, month int, c
 		query = query.Where("category = ?", *category)
 	}
 
-	// Preload the Payer information (which is a User)
-	if err := query.Preload("Payer").Find(&expenses).Error; err != nil {
+	if err := query.Find(&expenses).Error; err != nil {
 		return nil, err
 	}
 

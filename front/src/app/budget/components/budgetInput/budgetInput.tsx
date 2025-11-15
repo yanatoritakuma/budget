@@ -263,6 +263,7 @@ export default function BudgetInput({ loginUser, householdUsers }: Props) {
           type="date"
           name="date"
           value={budgetInput.date}
+          // defaultValue={}
           onChange={handleInputChange}
           required
         />

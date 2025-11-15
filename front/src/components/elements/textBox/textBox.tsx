@@ -14,6 +14,7 @@ import Box from "@mui/material/Box";
 type Props = {
   label: string;
   value: string;
+  defaultValue?: string;
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   className?: string;
   fullWidth?: boolean;
@@ -31,6 +32,7 @@ export const TextBox = memo(
   ({
     label,
     value,
+    defaultValue,
     onChange,
     className,
     fullWidth,
@@ -67,6 +69,7 @@ export const TextBox = memo(
             required={required}
             type={type}
             name={name}
+            defaultValue={defaultValue}
             {...(type === "date" && { InputLabelProps: { shrink: true } })}
           />
         ) : (
