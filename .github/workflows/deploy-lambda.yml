@@ -1,0 +1,47 @@
+name: Deploy Backend to AWS Lambda
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'back/**'
+
+permissions:
+  id-token: write # Required for configuring AWS credentials using OIDC
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_LAMBDA_DEPLOY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Build Go application for Lambda
+        working-directory: ./back
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o bootstrap main.go
+
+      - name: Zip build artifact
+        working-directory: ./back
+        run: |
+          zip lambda-handler.zip bootstrap
+
+      - name: Update Lambda function code
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
+            --zip-file fileb://back/lambda-handler.zip
