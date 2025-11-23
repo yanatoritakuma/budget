@@ -43,7 +43,8 @@ export default async function Page({
     ? parseInt(resolvedSearchParams.month)
     : currentDate.getMonth() + 1;
 
-  const expenses: components["schemas"]["ExpenseResponse"][] | null = await fetchBudgetList({ year, month });
+  const expenses: components["schemas"]["ExpenseResponse"][] | null =
+    await fetchBudgetList({ year, month });
 
   return (
     <main className="pageBox">
@@ -52,7 +53,7 @@ export default async function Page({
         <Link href="/household">世帯管理へ</Link>
       </div>
       <BudgetInput loginUser={loginUser} householdUsers={householdUsers} />
-      <BudgetList expenses={expenses} />
+      <BudgetList expenses={expenses} householdUsers={householdUsers} />
     </main>
   );
 }

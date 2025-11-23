@@ -6,12 +6,18 @@ import { components } from "@/types/api";
 import { formatDateForDisplay } from "@/utils/formatDateForDisplay";
 import { ButtonBox } from "@/components/elements/buttonBox/buttonBox";
 import "./styles.scss";
+import EditModal from "./editModal/editModal";
+import { TLoginUser } from "@/app/api/fetchLoginUser";
 
 type BudgetListComponentProps = {
   expenses: components["schemas"]["ExpenseResponse"][] | null;
+  householdUsers: TLoginUser[];
 };
 
-function BudgetListComponent({ expenses }: BudgetListComponentProps) {
+function BudgetListComponent({
+  expenses,
+  householdUsers,
+}: BudgetListComponentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -26,6 +32,7 @@ function BudgetListComponent({ expenses }: BudgetListComponentProps) {
   };
 
   const [currentDate, setCurrentDate] = useState(getInitialDate());
+  const [isEditModal, setIsEditModal] = useState<number | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -71,7 +78,7 @@ function BudgetListComponent({ expenses }: BudgetListComponentProps) {
         </ButtonBox>
       </div>
       {expenses && expenses.length > 0 ? (
-        expenses.map((expense) => (
+        expenses.map((expense, index) => (
           <div key={expense.id} className="expense-item">
             <div className="expense-details">
               <p className="store-name">{expense.store_name}</p>
@@ -85,13 +92,29 @@ function BudgetListComponent({ expenses }: BudgetListComponentProps) {
                 <p className="expense-payer">支払者: {expense.payer_name}</p>
               )}
             </div>
-            <span className="expense-amount">
-              ¥{expense.amount.toLocaleString()}
-            </span>
+            <div className="side-box">
+              <span className="expense-amount">
+                ¥{expense.amount.toLocaleString()}
+              </span>
+              <div className="edit-box">
+                <ButtonBox onClick={() => setIsEditModal(index)}>
+                  編集
+                </ButtonBox>
+                <ButtonBox>削除</ButtonBox>
+              </div>
+            </div>
           </div>
         ))
       ) : (
         <p className="empty-message">{`${year}年${month}月の支出はまだありません。`}</p>
+      )}
+
+      {isEditModal !== null && (
+        <EditModal
+          onClose={() => setIsEditModal(null)}
+          expense={expenses ? expenses[isEditModal] : null}
+          users={householdUsers}
+        />
       )}
     </div>
   );
@@ -99,12 +122,19 @@ function BudgetListComponent({ expenses }: BudgetListComponentProps) {
 
 type BudgetListProps = {
   expenses: components["schemas"]["ExpenseResponse"][] | null;
+  householdUsers: TLoginUser[];
 };
 
-export default function BudgetList({ expenses }: BudgetListProps) {
+export default function BudgetList({
+  expenses,
+  householdUsers,
+}: BudgetListProps) {
   return (
     <Suspense fallback={<div className="loading-message">読み込み中...</div>}>
-      <BudgetListComponent expenses={expenses} />
+      <BudgetListComponent
+        expenses={expenses}
+        householdUsers={householdUsers}
+      />
     </Suspense>
   );
 }
