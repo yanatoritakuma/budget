@@ -9,6 +9,7 @@ import (
 type IExpenseUsecase interface {
 	CreateExpense(expense model.Expense) (api.ExpenseResponse, error)
 	GetExpense(userID uint, year int, month int, category *string) ([]api.ExpenseResponse, error)
+	UpdateExpense(expense model.Expense, expenseId uint) (api.ExpenseResponse, error)
 }
 
 type expenseUsecase struct {
@@ -77,4 +78,30 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 	}
 
 	return expenseResponses, nil
+}
+
+func (eu *expenseUsecase) UpdateExpense(expense model.Expense, expenseId uint) (api.ExpenseResponse, error) {
+	if err := eu.er.UpdateExpense(&expense, expenseId); err != nil {
+		return api.ExpenseResponse{}, err
+	}
+
+	var user model.User
+	if err := eu.ur.GetUserByID(&user, expense.UserID); err != nil {
+		return api.ExpenseResponse{}, err
+	}
+
+	payerName := user.Name
+
+	resExpense := api.ExpenseResponse{
+		Id:        int(expenseId),
+		UserId:    int(expense.UserID),
+		Amount:    expense.Amount,
+		StoreName: expense.StoreName,
+		Date:      expense.Date,
+		Category:  expense.Category,
+		Memo:      &expense.Memo,
+		CreatedAt: expense.CreatedAt,
+		PayerName: &payerName,
+	}
+	return resExpense, nil
 }

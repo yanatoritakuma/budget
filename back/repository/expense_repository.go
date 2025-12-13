@@ -8,6 +8,7 @@ import (
 type IExpenseRepository interface {
 	CreateExpense(expense *model.Expense) error
 	GetExpense(householdID uint, year int, month int, category *string) ([]model.Expense, error)
+	UpdateExpense(expense *model.Expense, expenseId uint) error
 }
 
 type expenseRepository struct {
@@ -41,4 +42,11 @@ func (er *expenseRepository) GetExpense(householdID uint, year int, month int, c
 	}
 
 	return expenses, nil
+}
+
+func (er *expenseRepository) UpdateExpense(expense *model.Expense, expenseId uint) error {
+	if err := er.db.Model(&model.Expense{}).Where("id = ?", expenseId).Updates(expense).Error; err != nil {
+		return err
+	}
+	return nil
 }

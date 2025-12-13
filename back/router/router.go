@@ -71,6 +71,7 @@ func NewRouter(
 	{
 		expenses.POST("", gin.HandlerFunc(ec.CreateExpense))
 		expenses.GET("", gin.HandlerFunc(ec.GetExpense))
+		expenses.PUT("/:id", gin.HandlerFunc(ec.UpdateExpense))
 	}
 
 	// 世帯管理のエンドポイント（認証必要）

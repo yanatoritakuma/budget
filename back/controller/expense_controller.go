@@ -12,6 +12,7 @@ import (
 type IExpenseController interface {
 	CreateExpense(c *gin.Context)
 	GetExpense(c *gin.Context)
+	UpdateExpense(c *gin.Context)
 }
 
 type expenseController struct {
@@ -105,4 +106,37 @@ func (ec *expenseController) GetExpense(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, expenses)
+}
+
+func (ec *expenseController) UpdateExpense(c *gin.Context) {
+	// ユーザーIDを取得（認証済みユーザーのコンテキストから）
+	userID := c.GetUint("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "ユーザーが認証されていません"})
+		return
+	}
+
+	// パスパラメータからIDを取得
+	id := c.Param("id")
+	expenseId, err := strconv.Atoi(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不正なIDフォーマットです"})
+		return
+	}
+
+	// リクエストボディからexpenseデータをバインド
+	expense := model.Expense{}
+	if err := c.ShouldBindJSON(&expense); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不正なリクエストデータです: " + err.Error()})
+		return
+	}
+
+	// 支出を更新
+	expenseRes, err := ec.eu.UpdateExpense(expense, uint(expenseId))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "支出の更新に失敗しました: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, expenseRes)
 }

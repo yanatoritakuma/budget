@@ -19,6 +19,9 @@ type ServerInterface interface {
 	// Create a new expense
 	// (POST /expenses)
 	PostExpenses(w http.ResponseWriter, r *http.Request)
+	// Update an expense
+	// (PUT /expenses/{id})
+	PutExpensesId(w http.ResponseWriter, r *http.Request, id int)
 	// User registration
 	// (POST /signup)
 	PostSignup(w http.ResponseWriter, r *http.Request)
@@ -37,6 +40,12 @@ func (_ Unimplemented) GetExpenses(w http.ResponseWriter, r *http.Request, param
 // Create a new expense
 // (POST /expenses)
 func (_ Unimplemented) PostExpenses(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update an expense
+// (PUT /expenses/{id})
+func (_ Unimplemented) PutExpensesId(w http.ResponseWriter, r *http.Request, id int) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -117,6 +126,31 @@ func (siw *ServerInterfaceWrapper) PostExpenses(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostExpenses(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutExpensesId operation middleware
+func (siw *ServerInterfaceWrapper) PutExpensesId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutExpensesId(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -258,6 +292,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/expenses", wrapper.PostExpenses)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/expenses/{id}", wrapper.PutExpensesId)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/signup", wrapper.PostSignup)

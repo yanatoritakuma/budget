@@ -7,19 +7,26 @@ import { formatDateForDisplay } from "@/utils/formatDateForDisplay";
 import { ButtonBox } from "@/components/elements/buttonBox/buttonBox";
 import "./styles.scss";
 import EditModal from "./editModal/editModal";
+import { updateExpense } from "@/app/api/updateExpense";
 import { TLoginUser } from "@/app/api/fetchLoginUser";
 
+type Expense = components["schemas"]["ExpenseResponse"];
+type User = components["schemas"]["UserResponse"];
+
 type BudgetListComponentProps = {
-  expenses: components["schemas"]["ExpenseResponse"][] | null;
+  expenses: Expense[] | null;
   householdUsers: TLoginUser[];
 };
 
 function BudgetListComponent({
-  expenses,
+  expenses: initialExpenses,
   householdUsers,
 }: BudgetListComponentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [expenses, setExpenses] = useState(initialExpenses);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
   const getInitialDate = () => {
     const year = searchParams.get("year");
@@ -32,7 +39,6 @@ function BudgetListComponent({
   };
 
   const [currentDate, setCurrentDate] = useState(getInitialDate());
-  const [isEditModal, setIsEditModal] = useState<number | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -42,6 +48,10 @@ function BudgetListComponent({
     const newMonth = newDate.getMonth() + 1;
     router.push(`?year=${newYear}&month=${newMonth}`);
   };
+
+  useEffect(() => {
+    setExpenses(initialExpenses);
+  }, [initialExpenses]);
 
   useEffect(() => {
     const newDate = getInitialDate();
@@ -66,6 +76,35 @@ function BudgetListComponent({
     updateURL(newDate);
   };
 
+  const handleEditClick = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedExpense(null);
+  };
+
+  const handleSaveExpense = async (updatedExpense: components["schemas"]["ExpenseRequest"]) => {
+    if (!selectedExpense) return;
+    try {
+      const savedExpense = await updateExpense(
+        updatedExpense,
+        selectedExpense.id
+      );
+      if (expenses) {
+        const newExpenses = expenses.map((exp) =>
+          exp.id === savedExpense.id ? savedExpense : exp
+        );
+        setExpenses(newExpenses);
+      }
+      handleCloseModal();
+    } catch (error) {
+      console.error("Failed to save expense:", error);
+    }
+  };
+
   return (
     <div className="budget-list-container">
       <div className="budget-list-header">
@@ -78,7 +117,7 @@ function BudgetListComponent({
         </ButtonBox>
       </div>
       {expenses && expenses.length > 0 ? (
-        expenses.map((expense, index) => (
+        expenses.map((expense) => (
           <div key={expense.id} className="expense-item">
             <div className="expense-details">
               <p className="store-name">{expense.store_name}</p>
@@ -97,7 +136,7 @@ function BudgetListComponent({
                 ¥{expense.amount.toLocaleString()}
               </span>
               <div className="edit-box">
-                <ButtonBox onClick={() => setIsEditModal(index)}>
+                <ButtonBox onClick={() => handleEditClick(expense)}>
                   編集
                 </ButtonBox>
                 <ButtonBox>削除</ButtonBox>
@@ -109,11 +148,12 @@ function BudgetListComponent({
         <p className="empty-message">{`${year}年${month}月の支出はまだありません。`}</p>
       )}
 
-      {isEditModal !== null && (
+      {isModalOpen && (
         <EditModal
-          onClose={() => setIsEditModal(null)}
-          expense={expenses ? expenses[isEditModal] : null}
-          users={householdUsers}
+          onClose={handleCloseModal}
+          expense={selectedExpense}
+          users={householdUsers as User[]}
+          onSave={handleSaveExpense}
         />
       )}
     </div>
@@ -121,7 +161,7 @@ function BudgetListComponent({
 }
 
 type BudgetListProps = {
-  expenses: components["schemas"]["ExpenseResponse"][] | null;
+  expenses: Expense[] | null;
   householdUsers: TLoginUser[];
 };
 

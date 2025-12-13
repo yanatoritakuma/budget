@@ -9,9 +9,15 @@ interface EditModalProps {
   onClose: () => void;
   expense: Expense | null;
   users: User[];
+  onSave: (updatedExpense: Expense) => void;
 }
 
-const EditModal: React.FC<EditModalProps> = ({ onClose, expense, users }) => {
+const EditModal: React.FC<EditModalProps> = ({
+  onClose,
+  expense,
+  users,
+  onSave,
+}) => {
   const [amount, setAmount] = useState(0);
   const [storeName, setStoreName] = useState("");
   const [transactionDate, setTransactionDate] = useState("");
@@ -32,16 +38,16 @@ const EditModal: React.FC<EditModalProps> = ({ onClose, expense, users }) => {
 
   const handleSave = () => {
     if (expense) {
-      const updatedExpense: Expense = {
+      const updatedExpense = {
         ...expense,
         amount,
         store_name: storeName,
-        date: transactionDate,
+        date: `${transactionDate}T00:00:00Z`,
         category,
         memo,
         user_id: parseInt(payerId, 10),
       };
-      // onSave(updatedExpense);
+      onSave(updatedExpense);
     }
   };
 
@@ -122,5 +128,6 @@ const EditModal: React.FC<EditModalProps> = ({ onClose, expense, users }) => {
     </div>
   );
 };
+
 
 export default EditModal;
