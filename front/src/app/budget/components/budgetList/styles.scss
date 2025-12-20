@@ -71,9 +71,33 @@
   }
 }
 
-.loading-message, .empty-message {
-    text-align: center;
-    color: #666;
-    padding: 2rem;
-    font-size: 1.1rem;
+.loading-message,
+.empty-message {
+  text-align: center;
+  color: #666;
+  padding: 2rem;
+  font-size: 1.1rem;
+}
+
+.side-box {
+  // width: fit-content;
+  // display: flex;
+  // align-items: center;
+  // justify-content: space-between;
+  text-align: end;
+
+  height: auto;
+}
+
+.edit-box {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  button {
+    margin: 0 10px;
+
+    &:nth-child(2) {
+      background-color: red;
+    }
+  }
 }

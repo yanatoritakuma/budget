@@ -82,6 +82,55 @@ paths:
                   $ref: '#/components/schemas/ExpenseResponse'
         '500':
           description: Internal server error
+  /expenses/{id}:
+    put:
+      tags:
+        - expense
+      summary: Update an expense
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: ID of the expense to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseRequest'
+      responses:
+        '200':
+          description: Expense updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseResponse'
+        '400':
+          description: Invalid input
+        '404':
+          description: Expense not found
+        '500':
+          description: Internal server error
+    delete:
+      tags:
+        - expense
+      summary: Delete an expense
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: ID of the expense to delete
+      responses:
+        '204':
+          description: Expense deleted successfully
+        '404':
+          description: Expense not found
+        '500':
+          description: Internal server error
 components:
   schemas:
     SignUpRequest:
@@ -171,7 +220,7 @@ components:
           type: string
         date:
           type: string
-          format: date-time
+          format: date
         category:
           type: string
         memo:

@@ -6,14 +6,28 @@ import { components } from "@/types/api";
 import { formatDateForDisplay } from "@/utils/formatDateForDisplay";
 import { ButtonBox } from "@/components/elements/buttonBox/buttonBox";
 import "./styles.scss";
+import EditModal from "./editModal/editModal";
+import { updateExpense } from "@/app/api/updateExpense";
+import { deleteExpense } from "@/app/api/deleteExpense";
+import { TLoginUser } from "@/app/api/fetchLoginUser";
+
+type Expense = components["schemas"]["ExpenseResponse"];
+type User = components["schemas"]["UserResponse"];
 
 type BudgetListComponentProps = {
-  expenses: components["schemas"]["ExpenseResponse"][] | null;
+  expenses: Expense[] | null;
+  householdUsers: TLoginUser[];
 };
 
-function BudgetListComponent({ expenses }: BudgetListComponentProps) {
+function BudgetListComponent({
+  expenses: initialExpenses,
+  householdUsers,
+}: BudgetListComponentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [expenses, setExpenses] = useState(initialExpenses);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
   const getInitialDate = () => {
     const year = searchParams.get("year");
@@ -37,6 +51,10 @@ function BudgetListComponent({ expenses }: BudgetListComponentProps) {
   };
 
   useEffect(() => {
+    setExpenses(initialExpenses);
+  }, [initialExpenses]);
+
+  useEffect(() => {
     const newDate = getInitialDate();
     setCurrentDate(newDate);
   }, [searchParams]);
@@ -57,6 +75,52 @@ function BudgetListComponent({ expenses }: BudgetListComponentProps) {
       1
     );
     updateURL(newDate);
+  };
+
+  const handleEditClick = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedExpense(null);
+  };
+
+  const handleSaveExpense = async (
+    updatedExpense: components["schemas"]["ExpenseRequest"]
+  ) => {
+    if (!selectedExpense) return;
+    try {
+      const savedExpense = await updateExpense(
+        updatedExpense,
+        selectedExpense.id
+      );
+      if (expenses) {
+        const newExpenses = expenses.map((exp) =>
+          exp.id === savedExpense.id ? savedExpense : exp
+        );
+        setExpenses(newExpenses);
+      }
+      handleCloseModal();
+    } catch (error) {
+      console.error("Failed to save expense:", error);
+    }
+  };
+
+  const handleDelete = async (expenseId: number) => {
+    if (window.confirm("この支出を削除しますか？")) {
+      try {
+        await deleteExpense(expenseId);
+        if (expenses) {
+          const newExpenses = expenses.filter((exp) => exp.id !== expenseId);
+          setExpenses(newExpenses);
+        }
+      } catch (error) {
+        console.error("Failed to delete expense:", error);
+        alert("支出の削除に失敗しました。");
+      }
+    }
   };
 
   return (
@@ -85,26 +149,53 @@ function BudgetListComponent({ expenses }: BudgetListComponentProps) {
                 <p className="expense-payer">支払者: {expense.payer_name}</p>
               )}
             </div>
-            <span className="expense-amount">
-              ¥{expense.amount.toLocaleString()}
-            </span>
+            <div className="side-box">
+              <span className="expense-amount">
+                ¥{expense.amount.toLocaleString()}
+              </span>
+              <div className="edit-box">
+                <ButtonBox onClick={() => handleEditClick(expense)}>
+                  編集
+                </ButtonBox>
+                <ButtonBox onClick={() => handleDelete(expense.id)}>
+                  削除
+                </ButtonBox>
+              </div>
+            </div>
           </div>
         ))
       ) : (
         <p className="empty-message">{`${year}年${month}月の支出はまだありません。`}</p>
       )}
+
+      {isModalOpen && (
+        <EditModal
+          onClose={handleCloseModal}
+          expense={selectedExpense}
+          users={householdUsers as User[]}
+          onSave={handleSaveExpense}
+        />
+      )}
     </div>
   );
 }
 
+
 type BudgetListProps = {
-  expenses: components["schemas"]["ExpenseResponse"][] | null;
+  expenses: Expense[] | null;
+  householdUsers: TLoginUser[];
 };
 
-export default function BudgetList({ expenses }: BudgetListProps) {
+export default function BudgetList({
+  expenses,
+  householdUsers,
+}: BudgetListProps) {
   return (
     <Suspense fallback={<div className="loading-message">読み込み中...</div>}>
-      <BudgetListComponent expenses={expenses} />
+      <BudgetListComponent
+        expenses={expenses}
+        householdUsers={householdUsers}
+      />
     </Suspense>
   );
 }
