@@ -113,6 +113,24 @@ paths:
           description: Expense not found
         '500':
           description: Internal server error
+    delete:
+      tags:
+        - expense
+      summary: Delete an expense
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: ID of the expense to delete
+      responses:
+        '204':
+          description: Expense deleted successfully
+        '404':
+          description: Expense not found
+        '500':
+          description: Internal server error
 components:
   schemas:
     SignUpRequest:

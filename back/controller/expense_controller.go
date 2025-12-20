@@ -13,6 +13,7 @@ type IExpenseController interface {
 	CreateExpense(c *gin.Context)
 	GetExpense(c *gin.Context)
 	UpdateExpense(c *gin.Context)
+	DeleteExpense(c *gin.Context)
 }
 
 type expenseController struct {
@@ -139,4 +140,22 @@ func (ec *expenseController) UpdateExpense(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, expenseRes)
+}
+
+func (ec *expenseController) DeleteExpense(c *gin.Context) {
+	// パスパラメータからIDを取得
+	id := c.Param("id")
+	expenseId, err := strconv.Atoi(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不正なIDフォーマットです"})
+		return
+	}
+
+	// 支出を削除
+	if err := ec.eu.DeleteExpense(uint(expenseId)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "支出の削除に失敗しました: " + err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

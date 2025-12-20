@@ -10,6 +10,7 @@ type IExpenseUsecase interface {
 	CreateExpense(expense model.Expense) (api.ExpenseResponse, error)
 	GetExpense(userID uint, year int, month int, category *string) ([]api.ExpenseResponse, error)
 	UpdateExpense(expense model.Expense, expenseId uint) (api.ExpenseResponse, error)
+	DeleteExpense(expenseId uint) error
 }
 
 type expenseUsecase struct {
@@ -104,4 +105,11 @@ func (eu *expenseUsecase) UpdateExpense(expense model.Expense, expenseId uint) (
 		PayerName: &payerName,
 	}
 	return resExpense, nil
+}
+
+func (eu *expenseUsecase) DeleteExpense(expenseId uint) error {
+	if err := eu.er.DeleteExpense(expenseId); err != nil {
+		return err
+	}
+	return nil
 }

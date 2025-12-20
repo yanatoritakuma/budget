@@ -8,6 +8,7 @@ import { ButtonBox } from "@/components/elements/buttonBox/buttonBox";
 import "./styles.scss";
 import EditModal from "./editModal/editModal";
 import { updateExpense } from "@/app/api/updateExpense";
+import { deleteExpense } from "@/app/api/deleteExpense";
 import { TLoginUser } from "@/app/api/fetchLoginUser";
 
 type Expense = components["schemas"]["ExpenseResponse"];
@@ -86,7 +87,9 @@ function BudgetListComponent({
     setSelectedExpense(null);
   };
 
-  const handleSaveExpense = async (updatedExpense: components["schemas"]["ExpenseRequest"]) => {
+  const handleSaveExpense = async (
+    updatedExpense: components["schemas"]["ExpenseRequest"]
+  ) => {
     if (!selectedExpense) return;
     try {
       const savedExpense = await updateExpense(
@@ -102,6 +105,21 @@ function BudgetListComponent({
       handleCloseModal();
     } catch (error) {
       console.error("Failed to save expense:", error);
+    }
+  };
+
+  const handleDelete = async (expenseId: number) => {
+    if (window.confirm("この支出を削除しますか？")) {
+      try {
+        await deleteExpense(expenseId);
+        if (expenses) {
+          const newExpenses = expenses.filter((exp) => exp.id !== expenseId);
+          setExpenses(newExpenses);
+        }
+      } catch (error) {
+        console.error("Failed to delete expense:", error);
+        alert("支出の削除に失敗しました。");
+      }
     }
   };
 
@@ -139,7 +157,9 @@ function BudgetListComponent({
                 <ButtonBox onClick={() => handleEditClick(expense)}>
                   編集
                 </ButtonBox>
-                <ButtonBox>削除</ButtonBox>
+                <ButtonBox onClick={() => handleDelete(expense.id)}>
+                  削除
+                </ButtonBox>
               </div>
             </div>
           </div>
@@ -159,6 +179,7 @@ function BudgetListComponent({
     </div>
   );
 }
+
 
 type BudgetListProps = {
   expenses: Expense[] | null;
