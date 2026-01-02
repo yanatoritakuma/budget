@@ -10,6 +10,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var _ user.IUserRepository = (*UserRepositoryImpl)(nil)
+
 // UserRepositoryImpl implements domain.UserRepository using GORM.
 type UserRepositoryImpl struct {
 	db *gorm.DB

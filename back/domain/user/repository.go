@@ -1,13 +1,15 @@
 package user
 
-import "context"
+import (
+	"context"
+)
 
-// UserRepository is the interface for persisting User domain entities.
-type UserRepository interface {
+// IUserRepository defines the interface for user data operations.
+type IUserRepository interface {
 	FindByID(ctx context.Context, id uint) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
-	FindByHouseholdID(ctx context.Context, householdID uint) ([]*User, error)
-	Create(ctx context.Context, user *User) error
-	Update(ctx context.Context, user *User) error
+	Create(ctx context.Context, userEntity *User) error
+	Update(ctx context.Context, userEntity *User) error
 	Delete(ctx context.Context, id uint) error
+	FindByHouseholdID(ctx context.Context, householdID uint) ([]*User, error)
 }

@@ -19,10 +19,10 @@ type IExpenseUsecase interface {
 
 type expenseUsecase struct {
 	er repository.IExpenseRepository
-	ur user.UserRepository
+	ur user.IUserRepository
 }
 
-func NewExpenseUsecase(er repository.IExpenseRepository, ur user.UserRepository) IExpenseUsecase {
+func NewExpenseUsecase(er repository.IExpenseRepository, ur user.IUserRepository) IExpenseUsecase {
 	return &expenseUsecase{er: er, ur: ur}
 }
 

@@ -8,10 +8,10 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/yanatoritakuma/budget/back/domain/household"
 	"github.com/yanatoritakuma/budget/back/domain/user"
 	"github.com/yanatoritakuma/budget/back/internal/api"
 	"github.com/yanatoritakuma/budget/back/model"
-	"github.com/yanatoritakuma/budget/back/repository"
 	"github.com/yanatoritakuma/budget/back/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -29,12 +29,12 @@ type IUserUsecase interface {
 }
 
 type userUsecase struct {
-	ur         user.UserRepository
-	hr         repository.IHouseholdRepository
+	ur         user.IUserRepository
+	hr         household.IHouseholdRepository
 	tokenStore *model.TokenStore
 }
 
-func NewUserUsecase(ur user.UserRepository, hr repository.IHouseholdRepository) IUserUsecase {
+func NewUserUsecase(ur user.IUserRepository, hr household.IHouseholdRepository) IUserUsecase {
 	return &userUsecase{
 		ur:         ur,
 		hr:         hr,
@@ -45,11 +45,16 @@ func NewUserUsecase(ur user.UserRepository, hr repository.IHouseholdRepository) 
 func (uu *userUsecase) SignUp(req api.SignUpRequest) (api.UserResponse, error) {
 	ctx := context.Background()
 
-	newHousehold := model.Household{
-		Name:       fmt.Sprintf("%s's Household", req.Name),
-		InviteCode: utils.GenerateRandomString(16),
+	// Create a new domain household
+	domainHousehold, err := household.NewHousehold(
+		fmt.Sprintf("%s's Household", req.Name),
+		utils.GenerateRandomString(16),
+	)
+	if err != nil {
+		return api.UserResponse{}, err
 	}
-	if err := uu.hr.CreateHousehold(&newHousehold); err != nil {
+
+	if err := uu.hr.Create(ctx, domainHousehold); err != nil {
 		return api.UserResponse{}, err
 	}
 
@@ -64,7 +69,7 @@ func (uu *userUsecase) SignUp(req api.SignUpRequest) (api.UserResponse, error) {
 		req.Name,
 		"",
 		false,
-		newHousehold.ID,
+		domainHousehold.ID,
 	)
 	if err != nil {
 		return api.UserResponse{}, err
@@ -249,9 +254,12 @@ func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]api.UserResponse, error
 func (uu *userUsecase) JoinHousehold(userID uint, inviteCode string) error {
 	ctx := context.Background()
 
-	var household model.Household
-	if err := uu.hr.GetHouseholdByInviteCode(&household, inviteCode); err != nil {
+	domainHousehold, err := uu.hr.FindByInviteCode(ctx, inviteCode) // Use FindByInviteCode
+	if err != nil {
 		return fmt.Errorf("invalid invite code: %w", err)
+	}
+	if domainHousehold == nil {
+		return fmt.Errorf("invalid invite code: household not found")
 	}
 
 	domainUser, err := uu.ur.FindByID(ctx, userID)
@@ -262,7 +270,7 @@ func (uu *userUsecase) JoinHousehold(userID uint, inviteCode string) error {
 		return fmt.Errorf("user not found")
 	}
 
-	domainUser.HouseholdID = household.ID
+	domainUser.HouseholdID = domainHousehold.ID
 	if err := uu.ur.Update(ctx, domainUser); err != nil {
 		return fmt.Errorf("failed to update user's household: %w", err)
 	}

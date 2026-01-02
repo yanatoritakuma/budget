@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/yanatoritakuma/budget/back/domain/household" // Added
 	"github.com/yanatoritakuma/budget/back/domain/user"
-	"github.com/yanatoritakuma/budget/back/model"
-	"github.com/yanatoritakuma/budget/back/repository"
 	"github.com/yanatoritakuma/budget/back/utils"
 )
 
@@ -15,11 +14,11 @@ type IHouseholdUsecase interface {
 }
 
 type householdUsecase struct {
-	hr repository.IHouseholdRepository
-	ur user.UserRepository
+	hr household.IHouseholdRepository // Changed type
+	ur user.IUserRepository
 }
 
-func NewHouseholdUsecase(hr repository.IHouseholdRepository, ur user.UserRepository) IHouseholdUsecase {
+func NewHouseholdUsecase(hr household.IHouseholdRepository, ur user.IUserRepository) IHouseholdUsecase { // Changed hr type
 	return &householdUsecase{hr, ur}
 }
 
@@ -36,17 +35,20 @@ func (hu *householdUsecase) GenerateInviteCode(userID uint) (string, error) {
 	}
 
 	// Get the household
-	var household model.Household
-	if err := hu.hr.GetHousehold(&household, domainUser.HouseholdID); err != nil {
+	domainHousehold, err := hu.hr.FindByID(ctx, domainUser.HouseholdID) // Use FindByID
+	if err != nil {
 		return "", fmt.Errorf("could not find household: %w", err)
+	}
+	if domainHousehold == nil {
+		return "", fmt.Errorf("household not found")
 	}
 
 	// Generate a unique invite code
 	inviteCode := utils.GenerateRandomString(16)
 
 	// Save the code to the household
-	household.InviteCode = inviteCode
-	if err := hu.hr.UpdateHousehold(&household); err != nil {
+	domainHousehold.GenerateNewInviteCode(inviteCode)          // Use domain method
+	if err := hu.hr.Update(ctx, domainHousehold); err != nil { // Use Update
 		return "", fmt.Errorf("could not save invite code: %w", err)
 	}
 
