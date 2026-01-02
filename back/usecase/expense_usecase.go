@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/yanatoritakuma/budget/back/domain/user" // Added
+	"github.com/yanatoritakuma/budget/back/domain/user"
 	"github.com/yanatoritakuma/budget/back/internal/api"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/repository"
