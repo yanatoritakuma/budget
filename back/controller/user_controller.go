@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yanatoritakuma/budget/back/internal/api"
-	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/usecase"
 )
 
@@ -146,13 +145,13 @@ func (uc *userController) UpdateUser(c *gin.Context) {
 	claims := userClaims.(jwt.MapClaims)
 	userId := uint(claims["user_id"].(float64))
 
-	user := model.User{}
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var req api.UserUpdate
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userRes, err := uc.uu.UpdateUser(user, userId)
+	userRes, err := uc.uu.UpdateUser(userId, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -194,7 +193,6 @@ func (uc *userController) GetHouseholdUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
-
 type JoinHouseholdRequest struct {
 	InviteCode string `json:"invite_code"`
 }
@@ -221,4 +219,3 @@ func (uc *userController) JoinHousehold(c *gin.Context) {
 
 	c.Status(http.StatusOK)
 }
-

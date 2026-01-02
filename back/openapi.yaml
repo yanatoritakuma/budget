@@ -205,6 +205,13 @@ components:
         payer_name:
           type: string
 
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        image:
+          type: string
     ExpenseRequest:
       type: object
       required:

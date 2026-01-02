@@ -1,8 +1,10 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/yanatoritakuma/budget/back/domain/user"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/repository"
 	"github.com/yanatoritakuma/budget/back/utils"
@@ -14,23 +16,28 @@ type IHouseholdUsecase interface {
 
 type householdUsecase struct {
 	hr repository.IHouseholdRepository
-	ur repository.IUserRepository
+	ur user.UserRepository
 }
 
-func NewHouseholdUsecase(hr repository.IHouseholdRepository, ur repository.IUserRepository) IHouseholdUsecase {
+func NewHouseholdUsecase(hr repository.IHouseholdRepository, ur user.UserRepository) IHouseholdUsecase {
 	return &householdUsecase{hr, ur}
 }
 
 func (hu *householdUsecase) GenerateInviteCode(userID uint) (string, error) {
+	ctx := context.Background()
+
 	// Get user to find their household
-	var user model.User
-	if err := hu.ur.GetUserByID(&user, userID); err != nil {
+	domainUser, err := hu.ur.FindByID(ctx, userID)
+	if err != nil {
 		return "", fmt.Errorf("could not find user: %w", err)
+	}
+	if domainUser == nil {
+		return "", fmt.Errorf("user not found")
 	}
 
 	// Get the household
 	var household model.Household
-	if err := hu.hr.GetHousehold(&household, user.HouseholdID); err != nil {
+	if err := hu.hr.GetHousehold(&household, domainUser.HouseholdID); err != nil {
 		return "", fmt.Errorf("could not find household: %w", err)
 	}
 

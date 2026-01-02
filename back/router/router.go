@@ -8,10 +8,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yanatoritakuma/budget/back/controller"
+	"github.com/yanatoritakuma/budget/back/repository" // Added
+	"github.com/yanatoritakuma/budget/back/usecase"    // Added
+	"gorm.io/gorm"                                     // Added
 )
 
 func NewRouter(
-	uc controller.IUserController,
+	db *gorm.DB,
 	ec controller.IExpenseController,
 	hc controller.IHouseholdController,
 ) *gin.Engine {
@@ -42,17 +45,24 @@ func NewRouter(
 		c.Next()
 	})
 
+	// --- Dependency Injection for User module ---
+	userRepo := repository.NewUserRepositoryImpl(db)
+	// TODO: Replace nil with a proper IHouseholdRepository implementation
+	// when the Household domain is also refactored.
+	userUsecase := usecase.NewUserUsecase(userRepo, nil)
+	userController := controller.NewUserController(userUsecase)
+	// --- End Dependency Injection for User module ---
 
 	// CSRF保護を適用
-	r.Use(csrfMiddleware(uc))
+	r.Use(csrfMiddleware(userController)) // Use instantiated userController
 
 	// -------------------------
 	// 認証不要ルート
 	// -------------------------
-	r.POST("/signup", gin.HandlerFunc(uc.SignUp))
-	r.POST("/login", gin.HandlerFunc(uc.LogIn))
-	r.POST("/logout", gin.HandlerFunc(uc.LogOut))
-	r.GET("/csrf", gin.HandlerFunc(uc.CsrfToken))
+	r.POST("/signup", gin.HandlerFunc(userController.SignUp)) // Use instantiated userController
+	r.POST("/login", gin.HandlerFunc(userController.LogIn))   // Use instantiated userController
+	r.POST("/logout", gin.HandlerFunc(userController.LogOut)) // Use instantiated userController
+	r.GET("/csrf", gin.HandlerFunc(userController.CsrfToken)) // Use instantiated userController
 
 	// -------------------------
 	// 認証必須ルート
@@ -60,9 +70,9 @@ func NewRouter(
 	auth := r.Group("/user")
 	auth.Use(authMiddleware())
 	{
-		auth.GET("", gin.HandlerFunc(uc.GetLoggedInUser))
-		auth.PUT("", gin.HandlerFunc(uc.UpdateUser))
-		auth.DELETE("/:userId", gin.HandlerFunc(uc.DeleteUser))
+		auth.GET("", gin.HandlerFunc(userController.GetLoggedInUser))       // Use instantiated userController
+		auth.PUT("", gin.HandlerFunc(userController.UpdateUser))            // Use instantiated userController
+		auth.DELETE("/:userId", gin.HandlerFunc(userController.DeleteUser)) // Use instantiated userController
 	}
 
 	// 支出管理のエンドポイント（認証必要）
@@ -79,11 +89,10 @@ func NewRouter(
 	household := r.Group("/household")
 	household.Use(authMiddleware())
 	{
-		household.GET("/users", gin.HandlerFunc(uc.GetHouseholdUsers))
+		household.GET("/users", gin.HandlerFunc(userController.GetHouseholdUsers)) // Use instantiated userController
 		household.POST("/invite-code", gin.HandlerFunc(hc.GenerateInviteCode))
-		household.POST("/join", gin.HandlerFunc(uc.JoinHousehold))
+		household.POST("/join", gin.HandlerFunc(userController.JoinHousehold)) // Use instantiated userController
 	}
-
 
 	return r
 }

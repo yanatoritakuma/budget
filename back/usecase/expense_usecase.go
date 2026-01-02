@@ -1,6 +1,10 @@
 package usecase
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/yanatoritakuma/budget/back/domain/user" // Added
 	"github.com/yanatoritakuma/budget/back/internal/api"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/repository"
@@ -15,10 +19,10 @@ type IExpenseUsecase interface {
 
 type expenseUsecase struct {
 	er repository.IExpenseRepository
-	ur repository.IUserRepository
+	ur user.UserRepository
 }
 
-func NewExpenseUsecase(er repository.IExpenseRepository, ur repository.IUserRepository) IExpenseUsecase {
+func NewExpenseUsecase(er repository.IExpenseRepository, ur user.UserRepository) IExpenseUsecase {
 	return &expenseUsecase{er: er, ur: ur}
 }
 
@@ -42,13 +46,18 @@ func (eu *expenseUsecase) CreateExpense(expense model.Expense) (api.ExpenseRespo
 }
 
 func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category *string) ([]api.ExpenseResponse, error) {
+	ctx := context.Background()
+
 	// Get user to find their household ID
-	var user model.User
-	if err := eu.ur.GetUserByID(&user, userID); err != nil {
-		return nil, err
+	currentUser, err := eu.ur.FindByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current user: %w", err)
+	}
+	if currentUser == nil {
+		return nil, fmt.Errorf("current user not found")
 	}
 
-	expenses, err := eu.er.GetExpense(user.HouseholdID, year, month, category)
+	expenses, err := eu.er.GetExpense(currentUser.HouseholdID, year, month, category)
 	if err != nil {
 		return nil, err
 	}
@@ -57,11 +66,13 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 	for _, expense := range expenses {
 
 		var payerName string
-		var user model.User
-		if err := eu.ur.GetUserByID(&user, expense.PayerID); err != nil {
+		payer, err := eu.ur.FindByID(ctx, expense.PayerID)
+		if err != nil {
+			payerName = "不明"
+		} else if payer == nil {
 			payerName = "不明"
 		} else {
-			payerName = user.Name
+			payerName = payer.Name
 		}
 
 		expenseResponse := api.ExpenseResponse{
@@ -82,16 +93,21 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 }
 
 func (eu *expenseUsecase) UpdateExpense(expense model.Expense, expenseId uint) (api.ExpenseResponse, error) {
+	ctx := context.Background()
+
 	if err := eu.er.UpdateExpense(&expense, expenseId); err != nil {
 		return api.ExpenseResponse{}, err
 	}
 
-	var user model.User
-	if err := eu.ur.GetUserByID(&user, expense.UserID); err != nil {
+	payer, err := eu.ur.FindByID(ctx, expense.UserID)
+	if err != nil {
 		return api.ExpenseResponse{}, err
 	}
+	if payer == nil {
+		return api.ExpenseResponse{}, fmt.Errorf("payer not found")
+	}
 
-	payerName := user.Name
+	payerName := payer.Name
 
 	resExpense := api.ExpenseResponse{
 		Id:        int(expenseId),

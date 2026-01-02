@@ -1,12 +1,14 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/yanatoritakuma/budget/back/domain/user"
 	"github.com/yanatoritakuma/budget/back/internal/api"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/repository"
@@ -18,7 +20,7 @@ type IUserUsecase interface {
 	SignUp(user api.SignUpRequest) (api.UserResponse, error)
 	Login(user api.SignUpRequest) (string, error)
 	GetLoggedInUser(tokenString string) (*api.UserResponse, error)
-	UpdateUser(user model.User, id uint) (api.UserResponse, error)
+	UpdateUser(id uint, req api.UserUpdate) (api.UserResponse, error)
 	DeleteUser(id uint) error
 	GetHouseholdUsers(userID uint) ([]api.UserResponse, error)
 	JoinHousehold(userID uint, inviteCode string) error
@@ -27,12 +29,12 @@ type IUserUsecase interface {
 }
 
 type userUsecase struct {
-	ur         repository.IUserRepository
+	ur         user.UserRepository
 	hr         repository.IHouseholdRepository
 	tokenStore *model.TokenStore
 }
 
-func NewUserUsecase(ur repository.IUserRepository, hr repository.IHouseholdRepository) IUserUsecase {
+func NewUserUsecase(ur user.UserRepository, hr repository.IHouseholdRepository) IUserUsecase {
 	return &userUsecase{
 		ur:         ur,
 		hr:         hr,
@@ -40,63 +42,64 @@ func NewUserUsecase(ur repository.IUserRepository, hr repository.IHouseholdRepos
 	}
 }
 
-func (uu *userUsecase) SignUp(user api.SignUpRequest) (api.UserResponse, error) {
-	// Create a new household for the user
+func (uu *userUsecase) SignUp(req api.SignUpRequest) (api.UserResponse, error) {
+	ctx := context.Background()
+
 	newHousehold := model.Household{
-		Name:       fmt.Sprintf("%s's Household", user.Name),
-		InviteCode: utils.GenerateRandomString(16), // Generate an initial invite code
+		Name:       fmt.Sprintf("%s's Household", req.Name),
+		InviteCode: utils.GenerateRandomString(16),
 	}
 	if err := uu.hr.CreateHousehold(&newHousehold); err != nil {
 		return api.UserResponse{}, err
 	}
 
-	// Hash the password
-	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 10)
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 	if err != nil {
-		// Here, we should probably delete the household that was just created to avoid orphaned data.
-		// For simplicity in this step, we'll omit that. In a production system, this should be a transaction.
 		return api.UserResponse{}, err
 	}
 
-	// Create the new user with the household ID
-	newUser := model.User{
-		Email:       string(user.Email),
-		Password:    string(hash),
-		Name:        user.Name,
-		HouseholdID: newHousehold.ID,
-	}
-	if user.Image != nil {
-		newUser.Image = *user.Image
-	}
-	if err := uu.ur.CreateUser(&newUser); err != nil {
+	domainUser, err := user.NewUser(
+		string(req.Email),
+		string(hash),
+		req.Name,
+		"",
+		false,
+		newHousehold.ID,
+	)
+	if err != nil {
 		return api.UserResponse{}, err
 	}
+	if req.Image != nil {
+		domainUser.Image = *req.Image
+	}
 
-	id := int(newUser.ID)
-	emailStr := newUser.Email
-	email := openapi_types.Email(emailStr)
-	name := newUser.Name
-	image := newUser.Image
-	admin := newUser.Admin
-	createdAt := newUser.CreatedAt
+	if err := uu.ur.Create(ctx, domainUser); err != nil {
+		return api.UserResponse{}, err
+	}
 
 	resUser := api.UserResponse{
-		Id:        id,
-		Email:     email,
-		Name:      name,
-		Image:     &image,
-		Admin:     admin,
-		CreatedAt: createdAt,
+		Id:        int(domainUser.ID),
+		Email:     openapi_types.Email(domainUser.Email),
+		Name:      domainUser.Name,
+		Image:     &domainUser.Image,
+		Admin:     domainUser.Admin,
+		CreatedAt: domainUser.CreatedAt,
 	}
 	return resUser, nil
 }
 
-func (uu *userUsecase) Login(user api.SignUpRequest) (string, error) {
-	storedUser := model.User{}
-	if err := uu.ur.GetUserByEmail(&storedUser, string(user.Email)); err != nil {
+func (uu *userUsecase) Login(req api.SignUpRequest) (string, error) {
+	ctx := context.Background()
+
+	storedUser, err := uu.ur.FindByEmail(ctx, string(req.Email))
+	if err != nil {
 		return "", err
 	}
-	err := bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(user.Password))
+	if storedUser == nil {
+		return "", fmt.Errorf("user not found")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(req.Password))
 	if err != nil {
 		return "", err
 	}
@@ -112,6 +115,8 @@ func (uu *userUsecase) Login(user api.SignUpRequest) (string, error) {
 }
 
 func (uu *userUsecase) GetLoggedInUser(tokenString string) (*api.UserResponse, error) {
+	ctx := context.Background()
+
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -126,19 +131,22 @@ func (uu *userUsecase) GetLoggedInUser(tokenString string) (*api.UserResponse, e
 		if !ok {
 			return nil, fmt.Errorf("invalid user ID in JWT token")
 		}
-		user := model.User{}
-		err = uu.ur.GetUserByID(&user, uint(userID))
+
+		domainUser, err := uu.ur.FindByID(ctx, uint(userID))
 		if err != nil {
 			return nil, err
 		}
+		if domainUser == nil {
+			return nil, fmt.Errorf("user not found")
+		}
 
-		id := int(user.ID)
-		emailStr := user.Email
+		id := int(domainUser.ID)
+		emailStr := domainUser.Email
 		email := openapi_types.Email(emailStr)
-		name := user.Name
-		image := user.Image
-		admin := user.Admin
-		createdAt := user.CreatedAt
+		name := domainUser.Name
+		image := domainUser.Image
+		admin := domainUser.Admin
+		createdAt := domainUser.CreatedAt
 
 		return &api.UserResponse{
 			Id:        id,
@@ -153,64 +161,77 @@ func (uu *userUsecase) GetLoggedInUser(tokenString string) (*api.UserResponse, e
 	}
 }
 
-func (uu *userUsecase) UpdateUser(user model.User, id uint) (api.UserResponse, error) {
-	if err := uu.ur.UpdateUser(&user, id); err != nil {
+func (uu *userUsecase) UpdateUser(id uint, req api.UserUpdate) (api.UserResponse, error) {
+	ctx := context.Background()
+
+	existingUser, err := uu.ur.FindByID(ctx, id)
+	if err != nil {
+		return api.UserResponse{}, err
+	}
+	if existingUser == nil {
+		return api.UserResponse{}, fmt.Errorf("user not found")
+	}
+
+	if req.Name != nil {
+		existingUser.Name = *req.Name
+	}
+	if req.Image != nil {
+		existingUser.Image = *req.Image
+	}
+
+	if err := uu.ur.Update(ctx, existingUser); err != nil {
 		return api.UserResponse{}, err
 	}
 
-	uid := int(user.ID)
-	emailStr := user.Email
-	email := openapi_types.Email(emailStr)
-	name := user.Name
-	image := user.Image
-	admin := user.Admin
-	createdAt := user.CreatedAt
-
 	resUser := api.UserResponse{
-		Id:        uid,
-		Email:     email,
-		Name:      name,
-		Image:     &image,
-		Admin:     admin,
-		CreatedAt: createdAt,
+		Id:        int(existingUser.ID),
+		Email:     openapi_types.Email(existingUser.Email),
+		Name:      existingUser.Name,
+		Image:     &existingUser.Image,
+		Admin:     existingUser.Admin,
+		CreatedAt: existingUser.CreatedAt,
 	}
 	return resUser, nil
 }
 
 func (uu *userUsecase) DeleteUser(id uint) error {
-	if err := uu.ur.DeleteUser(id); err != nil {
+	ctx := context.Background()
+	if err := uu.ur.Delete(ctx, id); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]api.UserResponse, error) {
-	// Get the current user to find their household ID
-	var currentUser model.User
-	if err := uu.ur.GetUserByID(&currentUser, userID); err != nil {
+	ctx := context.Background()
+
+	currentUser, err := uu.ur.FindByID(ctx, userID)
+	if err != nil {
 		return nil, fmt.Errorf("failed to get current user: %w", err)
+	}
+	if currentUser == nil {
+		return nil, fmt.Errorf("current user not found")
 	}
 
 	if currentUser.HouseholdID == 0 {
 		return nil, fmt.Errorf("current user does not belong to a household")
 	}
 
-	// Get all users from that household
-	var householdUsers []model.User
-	if err := uu.ur.GetUsersByHouseholdID(&householdUsers, currentUser.HouseholdID); err != nil {
+	householdUsers, err := uu.ur.FindByHouseholdID(ctx, currentUser.HouseholdID)
+	if err != nil {
 		return nil, fmt.Errorf("failed to get household users: %w", err)
 	}
 
 	// Format the response
 	var resUsers []api.UserResponse
-	for _, user := range householdUsers {
-		id := int(user.ID)
-		emailStr := user.Email
+	for _, domainUser := range householdUsers {
+		id := int(domainUser.ID)
+		emailStr := domainUser.Email
 		email := openapi_types.Email(emailStr)
-		name := user.Name
-		image := user.Image
-		admin := user.Admin
-		createdAt := user.CreatedAt
+		name := domainUser.Name
+		image := domainUser.Image
+		admin := domainUser.Admin
+		createdAt := domainUser.CreatedAt
 
 		resUsers = append(resUsers, api.UserResponse{
 			Id:        id,
@@ -226,21 +247,23 @@ func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]api.UserResponse, error
 }
 
 func (uu *userUsecase) JoinHousehold(userID uint, inviteCode string) error {
-	// Find the household by invite code
+	ctx := context.Background()
+
 	var household model.Household
 	if err := uu.hr.GetHouseholdByInviteCode(&household, inviteCode); err != nil {
 		return fmt.Errorf("invalid invite code: %w", err)
 	}
 
-	// Get the current user
-	var user model.User
-	if err := uu.ur.GetUserByID(&user, userID); err != nil {
+	domainUser, err := uu.ur.FindByID(ctx, userID)
+	if err != nil {
 		return fmt.Errorf("could not find user: %w", err)
 	}
+	if domainUser == nil {
+		return fmt.Errorf("user not found")
+	}
 
-	// Update user's household
-	user.HouseholdID = household.ID
-	if err := uu.ur.UpdateUser(&user, userID); err != nil {
+	domainUser.HouseholdID = household.ID
+	if err := uu.ur.Update(ctx, domainUser); err != nil {
 		return fmt.Errorf("failed to update user's household: %w", err)
 	}
 

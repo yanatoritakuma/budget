@@ -50,6 +50,12 @@ type UserResponse struct {
 	Name      string              `json:"name"`
 }
 
+// UserUpdate defines model for UserUpdate.
+type UserUpdate struct {
+	Image *string `json:"image,omitempty"`
+	Name  *string `json:"name,omitempty"`
+}
+
 // GetExpensesParams defines parameters for GetExpenses.
 type GetExpensesParams struct {
 	// Year Year to filter expenses
