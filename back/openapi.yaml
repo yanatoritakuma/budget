@@ -26,6 +26,30 @@ paths:
           description: Invalid input
         '500':
           description: Internal server error
+  /user:
+    put:
+      tags:
+        - user
+      summary: Update user information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
   /expenses:
     post:
       tags:
@@ -227,7 +251,7 @@ components:
           type: string
         date:
           type: string
-          format: date
+          format: date-time
         category:
           type: string
         memo:

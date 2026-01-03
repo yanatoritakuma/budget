@@ -27,7 +27,7 @@ func setupRouter() *gin.Engine {
 	// Repositories
 	userRepoImpl := repository.NewUserRepositoryImpl(dbInstance)
 	householdRepoImpl := repository.NewHouseholdRepositoryImpl(dbInstance)
-	expenseRepository := repository.NewExpenseRepository(dbInstance)
+	expenseRepository := repository.NewExpenseRepositoryImpl(dbInstance)
 
 	// Usecases
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository, userRepoImpl)

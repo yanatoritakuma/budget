@@ -9,9 +9,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yanatoritakuma/budget/back/controller"
 	"github.com/yanatoritakuma/budget/back/domain/household" // Added for IHouseholdRepository
-	"github.com/yanatoritakuma/budget/back/domain/user"     // Added for IUserRepository
-	"github.com/yanatoritakuma/budget/back/usecase"         // Added
-	"gorm.io/gorm"                                          // Added
+	"github.com/yanatoritakuma/budget/back/domain/user"      // Added for IUserRepository
+	"github.com/yanatoritakuma/budget/back/usecase"          // Added
+	"gorm.io/gorm"                                           // Added
 )
 
 func NewRouter(
@@ -56,7 +56,6 @@ func NewRouter(
 	userUsecase := usecase.NewUserUsecase(ur, hr)
 	userController := controller.NewUserController(userUsecase)
 	// --- End Dependency Injection for User module ---
-
 
 	// CSRF保護を適用
 	r.Use(csrfMiddleware(userController))

@@ -4,42 +4,58 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/yanatoritakuma/budget/back/domain/expense"
 	"github.com/yanatoritakuma/budget/back/domain/user"
 	"github.com/yanatoritakuma/budget/back/internal/api"
-	"github.com/yanatoritakuma/budget/back/model"
-	"github.com/yanatoritakuma/budget/back/repository"
 )
 
 type IExpenseUsecase interface {
-	CreateExpense(expense model.Expense) (api.ExpenseResponse, error)
+	CreateExpense(req api.ExpenseRequest) (api.ExpenseResponse, error)
 	GetExpense(userID uint, year int, month int, category *string) ([]api.ExpenseResponse, error)
-	UpdateExpense(expense model.Expense, expenseId uint) (api.ExpenseResponse, error)
+	UpdateExpense(req api.ExpenseRequest, expenseId uint) (api.ExpenseResponse, error)
 	DeleteExpense(expenseId uint) error
 }
 
 type expenseUsecase struct {
-	er repository.IExpenseRepository
+	er expense.IExpenseRepository
 	ur user.IUserRepository
 }
 
-func NewExpenseUsecase(er repository.IExpenseRepository, ur user.IUserRepository) IExpenseUsecase {
+func NewExpenseUsecase(er expense.IExpenseRepository, ur user.IUserRepository) IExpenseUsecase {
 	return &expenseUsecase{er: er, ur: ur}
 }
 
-func (eu *expenseUsecase) CreateExpense(expense model.Expense) (api.ExpenseResponse, error) {
-	if err := eu.er.CreateExpense(&expense); err != nil {
+func (eu *expenseUsecase) CreateExpense(req api.ExpenseRequest) (api.ExpenseResponse, error) {
+	memo := ""
+	if req.Memo != nil {
+		memo = *req.Memo
+	}
+	domainExpense, err := expense.NewExpense(
+		req.Amount,
+		req.StoreName,
+		req.Date,
+		req.Category,
+		memo,
+		uint(req.UserId),
+		uint(req.UserId), // PayerID is the same as UserID for now
+	)
+	if err != nil {
+		return api.ExpenseResponse{}, err
+	}
+
+	if err := eu.er.CreateExpense(domainExpense); err != nil {
 		return api.ExpenseResponse{}, err
 	}
 
 	resExpense := api.ExpenseResponse{
-		Id:        int(expense.ID),
-		UserId:    int(expense.UserID),
-		Amount:    expense.Amount,
-		StoreName: expense.StoreName,
-		Date:      expense.Date,
-		Category:  expense.Category,
-		Memo:      &expense.Memo,
-		CreatedAt: expense.CreatedAt,
+		Id:        int(domainExpense.ID),
+		UserId:    int(domainExpense.UserID),
+		Amount:    domainExpense.Amount,
+		StoreName: domainExpense.StoreName,
+		Date:      domainExpense.Date,
+		Category:  domainExpense.Category,
+		Memo:      &domainExpense.Memo,
+		CreatedAt: domainExpense.CreatedAt,
 	}
 
 	return resExpense, nil
@@ -48,7 +64,6 @@ func (eu *expenseUsecase) CreateExpense(expense model.Expense) (api.ExpenseRespo
 func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category *string) ([]api.ExpenseResponse, error) {
 	ctx := context.Background()
 
-	// Get user to find their household ID
 	currentUser, err := eu.ur.FindByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current user: %w", err)
@@ -63,10 +78,9 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 	}
 
 	var expenseResponses []api.ExpenseResponse
-	for _, expense := range expenses {
-
+	for _, domainExpense := range expenses {
 		var payerName string
-		payer, err := eu.ur.FindByID(ctx, expense.PayerID)
+		payer, err := eu.ur.FindByID(ctx, domainExpense.PayerID)
 		if err != nil {
 			payerName = "不明"
 		} else if payer == nil {
@@ -76,14 +90,14 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 		}
 
 		expenseResponse := api.ExpenseResponse{
-			Id:        int(expense.ID),
-			UserId:    int(expense.UserID),
-			Amount:    expense.Amount,
-			StoreName: expense.StoreName,
-			Date:      expense.Date,
-			Category:  expense.Category,
-			Memo:      &expense.Memo,
-			CreatedAt: expense.CreatedAt,
+			Id:        int(domainExpense.ID),
+			UserId:    int(domainExpense.UserID),
+			Amount:    domainExpense.Amount,
+			StoreName: domainExpense.StoreName,
+			Date:      domainExpense.Date,
+			Category:  domainExpense.Category,
+			Memo:      &domainExpense.Memo,
+			CreatedAt: domainExpense.CreatedAt,
 			PayerName: &payerName,
 		}
 		expenseResponses = append(expenseResponses, expenseResponse)
@@ -92,14 +106,33 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 	return expenseResponses, nil
 }
 
-func (eu *expenseUsecase) UpdateExpense(expense model.Expense, expenseId uint) (api.ExpenseResponse, error) {
+func (eu *expenseUsecase) UpdateExpense(req api.ExpenseRequest, expenseId uint) (api.ExpenseResponse, error) {
 	ctx := context.Background()
 
-	if err := eu.er.UpdateExpense(&expense, expenseId); err != nil {
+	memo := ""
+	if req.Memo != nil {
+		memo = *req.Memo
+	}
+
+	domainExpense, err := expense.NewExpense(
+		req.Amount,
+		req.StoreName,
+		req.Date,
+		req.Category,
+		memo,
+		uint(req.UserId),
+		uint(req.UserId), // PayerID is the same as UserID for now
+	)
+	if err != nil {
+		return api.ExpenseResponse{}, err
+	}
+	domainExpense.ID = expenseId
+
+	if err := eu.er.UpdateExpense(domainExpense, expenseId); err != nil {
 		return api.ExpenseResponse{}, err
 	}
 
-	payer, err := eu.ur.FindByID(ctx, expense.UserID)
+	payer, err := eu.ur.FindByID(ctx, domainExpense.UserID)
 	if err != nil {
 		return api.ExpenseResponse{}, err
 	}
@@ -111,13 +144,13 @@ func (eu *expenseUsecase) UpdateExpense(expense model.Expense, expenseId uint) (
 
 	resExpense := api.ExpenseResponse{
 		Id:        int(expenseId),
-		UserId:    int(expense.UserID),
-		Amount:    expense.Amount,
-		StoreName: expense.StoreName,
-		Date:      expense.Date,
-		Category:  expense.Category,
-		Memo:      &expense.Memo,
-		CreatedAt: expense.CreatedAt,
+		UserId:    int(domainExpense.UserID),
+		Amount:    domainExpense.Amount,
+		StoreName: domainExpense.StoreName,
+		Date:      domainExpense.Date,
+		Category:  domainExpense.Category,
+		Memo:      &domainExpense.Memo,
+		CreatedAt: domainExpense.CreatedAt,
 		PayerName: &payerName,
 	}
 	return resExpense, nil

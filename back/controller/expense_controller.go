@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yanatoritakuma/budget/back/model"
+	"github.com/yanatoritakuma/budget/back/internal/api"
 	"github.com/yanatoritakuma/budget/back/usecase"
 )
 
@@ -33,17 +33,17 @@ func (ec *expenseController) CreateExpense(c *gin.Context) {
 	}
 
 	// リクエストボディからexpenseデータをバインド
-	expense := model.Expense{}
-	if err := c.ShouldBindJSON(&expense); err != nil {
+	var req api.ExpenseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "不正なリクエストデータです: " + err.Error()})
 		return
 	}
 
 	// ユーザーIDをセット
-	expense.UserID = userID
+	req.UserId = int(userID)
 
 	// 支出を作成
-	expenseRes, err := ec.eu.CreateExpense(expense)
+	expenseRes, err := ec.eu.CreateExpense(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "支出の作成に失敗しました: " + err.Error()})
 		return
@@ -126,14 +126,14 @@ func (ec *expenseController) UpdateExpense(c *gin.Context) {
 	}
 
 	// リクエストボディからexpenseデータをバインド
-	expense := model.Expense{}
-	if err := c.ShouldBindJSON(&expense); err != nil {
+	var req api.ExpenseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "不正なリクエストデータです: " + err.Error()})
 		return
 	}
 
 	// 支出を更新
-	expenseRes, err := ec.eu.UpdateExpense(expense, uint(expenseId))
+	expenseRes, err := ec.eu.UpdateExpense(req, uint(expenseId))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "支出の更新に失敗しました: " + err.Error()})
 		return
