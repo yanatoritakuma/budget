@@ -3,10 +3,10 @@ package user
 import "time"
 
 type User struct {
-	ID          uint
-	Email       string
-	Password    string
-	Name        string
+	ID          UserID
+	Email       Email
+	Password    Password
+	Name        Name
 	Image       string
 	Admin       bool
 	CreatedAt   time.Time
@@ -14,13 +14,27 @@ type User struct {
 	HouseholdID uint
 }
 
-// NewUser creates a new User domain entity.
+// NewUser は新しいUserドメインエンティティを生成します。
 func NewUser(email, password, name, image string, admin bool, householdID uint) (*User, error) {
-	// TODO: Add validation and business rules here, e.g., password hashing
+	voEmail, err := NewEmail(email)
+	if err != nil {
+		return nil, err
+	}
+
+	voPassword, err := NewPassword(password)
+	if err != nil {
+		return nil, err
+	}
+
+	voName, err := NewName(name)
+	if err != nil {
+		return nil, err
+	}
+
 	return &User{
-		Email:       email,
-		Password:    password, // Should be hashed before saving
-		Name:        name,
+		Email:       voEmail,
+		Password:    voPassword,
+		Name:        voName,
 		Image:       image,
 		Admin:       admin,
 		CreatedAt:   time.Now(),
@@ -35,15 +49,13 @@ func (u *User) HasAdminPrivileges() bool {
 }
 
 // UpdateName updates the user's name.
-func (u *User) UpdateName(newName string) {
+func (u *User) UpdateName(newName Name) {
 	u.Name = newName
 	u.UpdatedAt = time.Now()
 }
 
 // ChangePassword changes the user's password.
-func (u *User) ChangePassword(newPassword string) error {
-	// TODO: Add password hashing and security logic here
+func (u *User) ChangePassword(newPassword Password) {
 	u.Password = newPassword
 	u.UpdatedAt = time.Now()
-	return nil
 }

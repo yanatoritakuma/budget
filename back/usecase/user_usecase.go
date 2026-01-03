@@ -83,9 +83,9 @@ func (uu *userUsecase) SignUp(req api.SignUpRequest) (api.UserResponse, error) {
 	}
 
 	resUser := api.UserResponse{
-		Id:        int(domainUser.ID),
-		Email:     openapi_types.Email(domainUser.Email),
-		Name:      domainUser.Name,
+		Id:        int(domainUser.ID.Value()),
+		Email:     openapi_types.Email(domainUser.Email.Value()),
+		Name:      domainUser.Name.Value(),
 		Image:     &domainUser.Image,
 		Admin:     domainUser.Admin,
 		CreatedAt: domainUser.CreatedAt,
@@ -104,12 +104,12 @@ func (uu *userUsecase) Login(req api.SignUpRequest) (string, error) {
 		return "", fmt.Errorf("user not found")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(req.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(storedUser.Password.Value()), []byte(req.Password))
 	if err != nil {
 		return "", err
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": storedUser.ID,
+		"user_id": storedUser.ID.Value(),
 		"exp":     time.Now().Add(time.Hour * 12).Unix(),
 	})
 	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET")))
@@ -145,10 +145,10 @@ func (uu *userUsecase) GetLoggedInUser(tokenString string) (*api.UserResponse, e
 			return nil, fmt.Errorf("user not found")
 		}
 
-		id := int(domainUser.ID)
-		emailStr := domainUser.Email
+		id := int(domainUser.ID.Value())
+		emailStr := domainUser.Email.Value()
 		email := openapi_types.Email(emailStr)
-		name := domainUser.Name
+		name := domainUser.Name.Value()
 		image := domainUser.Image
 		admin := domainUser.Admin
 		createdAt := domainUser.CreatedAt
@@ -178,7 +178,11 @@ func (uu *userUsecase) UpdateUser(id uint, req api.UserUpdate) (api.UserResponse
 	}
 
 	if req.Name != nil {
-		existingUser.Name = *req.Name
+		newName, err := user.NewName(*req.Name)
+		if err != nil {
+			return api.UserResponse{}, err
+		}
+		existingUser.UpdateName(newName)
 	}
 	if req.Image != nil {
 		existingUser.Image = *req.Image
@@ -189,9 +193,9 @@ func (uu *userUsecase) UpdateUser(id uint, req api.UserUpdate) (api.UserResponse
 	}
 
 	resUser := api.UserResponse{
-		Id:        int(existingUser.ID),
-		Email:     openapi_types.Email(existingUser.Email),
-		Name:      existingUser.Name,
+		Id:        int(existingUser.ID.Value()),
+		Email:     openapi_types.Email(existingUser.Email.Value()),
+		Name:      existingUser.Name.Value(),
 		Image:     &existingUser.Image,
 		Admin:     existingUser.Admin,
 		CreatedAt: existingUser.CreatedAt,
@@ -230,10 +234,10 @@ func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]api.UserResponse, error
 	// Format the response
 	var resUsers []api.UserResponse
 	for _, domainUser := range householdUsers {
-		id := int(domainUser.ID)
-		emailStr := domainUser.Email
+		id := int(domainUser.ID.Value())
+		emailStr := domainUser.Email.Value()
 		email := openapi_types.Email(emailStr)
-		name := domainUser.Name
+		name := domainUser.Name.Value()
 		image := domainUser.Image
 		admin := domainUser.Admin
 		createdAt := domainUser.CreatedAt

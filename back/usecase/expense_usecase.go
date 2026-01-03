@@ -86,7 +86,7 @@ func (eu *expenseUsecase) GetExpense(userID uint, year int, month int, category 
 		} else if payer == nil {
 			payerName = "不明"
 		} else {
-			payerName = payer.Name
+			payerName = payer.Name.Value()
 		}
 
 		expenseResponse := api.ExpenseResponse{
@@ -140,7 +140,7 @@ func (eu *expenseUsecase) UpdateExpense(req api.ExpenseRequest, expenseId uint) 
 		return api.ExpenseResponse{}, fmt.Errorf("payer not found")
 	}
 
-	payerName := payer.Name
+	payerName := payer.Name.Value()
 
 	resExpense := api.ExpenseResponse{
 		Id:        int(expenseId),

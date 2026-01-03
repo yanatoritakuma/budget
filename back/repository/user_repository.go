@@ -31,7 +31,7 @@ func (repo *UserRepositoryImpl) FindByID(ctx context.Context, id uint) (*user.Us
 		}
 		return nil, err
 	}
-	return toDomainUser(&userModel), nil
+	return toDomainUser(&userModel)
 }
 
 // FindByEmail finds a user by email.
@@ -43,7 +43,7 @@ func (repo *UserRepositoryImpl) FindByEmail(ctx context.Context, email string) (
 		}
 		return nil, err
 	}
-	return toDomainUser(&userModel), nil
+	return toDomainUser(&userModel)
 }
 
 // Create creates a new user.
@@ -53,7 +53,7 @@ func (repo *UserRepositoryImpl) Create(ctx context.Context, userEntity *user.Use
 		return err
 	}
 	// Update the domain entity with the generated ID and timestamps
-	userEntity.ID = userModel.ID
+	userEntity.ID = user.UserID(userModel.ID)
 	userEntity.CreatedAt = userModel.CreatedAt
 	userEntity.UpdatedAt = userModel.UpdatedAt
 	return nil
@@ -80,27 +80,47 @@ func (repo *UserRepositoryImpl) FindByHouseholdID(ctx context.Context, household
 
 	var domainUsers []*user.User
 	for i := range userModels {
-		domainUsers = append(domainUsers, toDomainUser(&userModels[i]))
+		domainUser, err := toDomainUser(&userModels[i])
+		if err != nil {
+			// In a real app, you might want to log this error but continue,
+			// or handle it more gracefully depending on business requirements.
+			return nil, err
+		}
+		domainUsers = append(domainUsers, domainUser)
 	}
 	return domainUsers, nil
 }
 
 // toDomainUser converts a model.User to a domain.User
-func toDomainUser(userModel *model.User) *user.User {
+func toDomainUser(userModel *model.User) (*user.User, error) {
 	if userModel == nil {
-		return nil
+		return nil, nil
 	}
+
+	email, err := user.NewEmail(userModel.Email)
+	if err != nil {
+		return nil, err
+	}
+	password, err := user.NewPassword(userModel.Password)
+	if err != nil {
+		return nil, err
+	}
+	name, err := user.NewName(userModel.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	return &user.User{
-		ID:          userModel.ID,
-		Email:       userModel.Email,
-		Password:    userModel.Password,
-		Name:        userModel.Name,
+		ID:          user.UserID(userModel.ID),
+		Email:       email,
+		Password:    password,
+		Name:        name,
 		Image:       userModel.Image,
 		Admin:       userModel.Admin,
 		CreatedAt:   userModel.CreatedAt,
 		UpdatedAt:   userModel.UpdatedAt,
 		HouseholdID: userModel.HouseholdID,
-	}
+	}, nil
 }
 
 // toModelUser converts a domain.User to a model.User
@@ -109,10 +129,10 @@ func toModelUser(userEntity *user.User) *model.User {
 		return nil
 	}
 	return &model.User{
-		ID:          userEntity.ID,
-		Email:       userEntity.Email,
-		Password:    userEntity.Password,
-		Name:        userEntity.Name,
+		ID:          userEntity.ID.Value(),
+		Email:       userEntity.Email.Value(),
+		Password:    userEntity.Password.Value(),
+		Name:        userEntity.Name.Value(),
 		Image:       userEntity.Image,
 		Admin:       userEntity.Admin,
 		CreatedAt:   userEntity.CreatedAt,
