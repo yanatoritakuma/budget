@@ -1,25 +1,46 @@
 package router
 
 import (
+
 	"net/http"
+
 	"os"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/yanatoritakuma/budget/back/controller"
-	"github.com/yanatoritakuma/budget/back/domain/household" // Added for IHouseholdRepository
-	"github.com/yanatoritakuma/budget/back/domain/user"      // Added for IUserRepository
-	"github.com/yanatoritakuma/budget/back/usecase"          // Added
-	"gorm.io/gorm"                                           // Added
-)
 
-func NewRouter(
-	db *gorm.DB,
-	ec controller.IExpenseController,
-	ur user.IUserRepository,
-	hr household.IHouseholdRepository,
-) *gin.Engine {
+
+	"github.com/gin-contrib/cors"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/yanatoritakuma/budget/back/controller"
+
+		"github.com/yanatoritakuma/budget/back/domain/household" // Added for IHouseholdRepository
+
+		"github.com/yanatoritakuma/budget/back/domain/user"     // Added for IUserRepository
+
+		"github.com/yanatoritakuma/budget/back/usecase"          // Added
+
+		"gorm.io/gorm"                                           // Added
+
+	)
+
+	
+
+	func NewRouter(
+
+		db *gorm.DB,
+
+		ec controller.IExpenseController,
+
+		ur user.IUserRepository,
+
+		hr household.IHouseholdRepository,
+
+		uow usecase.IUnitOfWork,
+
+	) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -53,7 +74,7 @@ func NewRouter(
 	// --- End Dependency Injection for Household module ---
 
 	// --- Dependency Injection for User module ---
-	userUsecase := usecase.NewUserUsecase(ur, hr)
+	userUsecase := usecase.NewUserUsecase(ur, hr, uow)
 	userController := controller.NewUserController(userUsecase)
 	// --- End Dependency Injection for User module ---
 

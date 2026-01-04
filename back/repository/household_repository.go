@@ -18,7 +18,7 @@ type HouseholdRepositoryImpl struct {
 }
 
 // NewHouseholdRepositoryImpl creates a new HouseholdRepositoryImpl.
-func NewHouseholdRepositoryImpl(db *gorm.DB) *HouseholdRepositoryImpl {
+func NewHouseholdRepositoryImpl(db *gorm.DB) household.IHouseholdRepository {
 	return &HouseholdRepositoryImpl{db: db}
 }
 

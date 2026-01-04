@@ -28,6 +28,7 @@ func setupRouter() *gin.Engine {
 	userRepoImpl := repository.NewUserRepositoryImpl(dbInstance)
 	householdRepoImpl := repository.NewHouseholdRepositoryImpl(dbInstance)
 	expenseRepository := repository.NewExpenseRepositoryImpl(dbInstance)
+	uow := repository.NewUnitOfWork(dbInstance)
 
 	// Usecases
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository, userRepoImpl)
@@ -36,7 +37,7 @@ func setupRouter() *gin.Engine {
 	expenseController := controller.NewExpenseController(expenseUsecase)
 
 	// New router signature
-	return router.NewRouter(dbInstance, expenseController, userRepoImpl, householdRepoImpl)
+	return router.NewRouter(dbInstance, expenseController, userRepoImpl, householdRepoImpl, uow)
 }
 
 func Handler(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

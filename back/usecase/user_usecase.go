@@ -31,54 +31,64 @@ type IUserUsecase interface {
 type userUsecase struct {
 	ur         user.IUserRepository
 	hr         household.IHouseholdRepository
+	uow        IUnitOfWork
 	tokenStore *model.TokenStore
 }
 
-func NewUserUsecase(ur user.IUserRepository, hr household.IHouseholdRepository) IUserUsecase {
+func NewUserUsecase(ur user.IUserRepository, hr household.IHouseholdRepository, uow IUnitOfWork) IUserUsecase {
 	return &userUsecase{
 		ur:         ur,
 		hr:         hr,
+		uow:        uow,
 		tokenStore: model.NewTokenStore(),
 	}
 }
 
 func (uu *userUsecase) SignUp(req api.SignUpRequest) (api.UserResponse, error) {
-	ctx := context.Background()
+	var domainUser *user.User
 
-	// Create a new domain household
-	domainHousehold, err := household.NewHousehold(
-		fmt.Sprintf("%s's Household", req.Name),
-		utils.GenerateRandomString(16),
-	)
+	err := uu.uow.Transaction(func(repos Repositories) error {
+		// Create a new domain household
+		domainHousehold, err := household.NewHousehold(
+			fmt.Sprintf("%s's Household", req.Name),
+			utils.GenerateRandomString(household.InviteCodeLength),
+		)
+		if err != nil {
+			return err
+		}
+
+		if err := repos.Household.Create(context.Background(), domainHousehold); err != nil {
+			return err
+		}
+
+		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
+		if err != nil {
+			return err
+		}
+
+		domainUser, err = user.NewUser(
+			string(req.Email),
+			string(hash),
+			req.Name,
+			"",
+			false,
+			domainHousehold.ID.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		if req.Image != nil {
+			domainUser.Image = *req.Image
+		}
+
+		if err := repos.User.Create(context.Background(), domainUser); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return api.UserResponse{}, err
-	}
-
-	if err := uu.hr.Create(ctx, domainHousehold); err != nil {
-		return api.UserResponse{}, err
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
-	if err != nil {
-		return api.UserResponse{}, err
-	}
-
-	domainUser, err := user.NewUser(
-		string(req.Email),
-		string(hash),
-		req.Name,
-		"",
-		false,
-		domainHousehold.ID.Value(),
-	)
-	if err != nil {
-		return api.UserResponse{}, err
-	}
-	if req.Image != nil {
-		domainUser.Image = *req.Image
-	}
-
-	if err := uu.ur.Create(ctx, domainUser); err != nil {
 		return api.UserResponse{}, err
 	}
 
