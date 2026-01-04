@@ -69,7 +69,7 @@ func (uu *userUsecase) SignUp(req api.SignUpRequest) (api.UserResponse, error) {
 		req.Name,
 		"",
 		false,
-		domainHousehold.ID,
+		domainHousehold.ID.Value(),
 	)
 	if err != nil {
 		return api.UserResponse{}, err
@@ -274,7 +274,7 @@ func (uu *userUsecase) JoinHousehold(userID uint, inviteCode string) error {
 		return fmt.Errorf("user not found")
 	}
 
-	domainUser.HouseholdID = domainHousehold.ID
+	domainUser.HouseholdID = domainHousehold.ID.Value()
 	if err := uu.ur.Update(ctx, domainUser); err != nil {
 		return fmt.Errorf("failed to update user's household: %w", err)
 	}

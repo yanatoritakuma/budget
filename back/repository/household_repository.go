@@ -31,7 +31,7 @@ func (repo *HouseholdRepositoryImpl) FindByID(ctx context.Context, id uint) (*ho
 		}
 		return nil, err
 	}
-	return toDomainHousehold(&householdModel), nil
+	return toDomainHousehold(&householdModel)
 }
 
 // FindByInviteCode finds a household by invite code.
@@ -43,7 +43,7 @@ func (repo *HouseholdRepositoryImpl) FindByInviteCode(ctx context.Context, invit
 		}
 		return nil, err
 	}
-	return toDomainHousehold(&householdModel), nil
+	return toDomainHousehold(&householdModel)
 }
 
 // Create creates a new household.
@@ -52,7 +52,7 @@ func (repo *HouseholdRepositoryImpl) Create(ctx context.Context, householdEntity
 	if err := repo.db.WithContext(ctx).Create(householdModel).Error; err != nil {
 		return err
 	}
-	householdEntity.ID = householdModel.ID
+	householdEntity.ID = household.HouseholdID(householdModel.ID)
 	householdEntity.CreatedAt = householdModel.CreatedAt
 	householdEntity.UpdatedAt = householdModel.UpdatedAt
 	return nil
@@ -65,17 +65,27 @@ func (repo *HouseholdRepositoryImpl) Update(ctx context.Context, householdEntity
 	return repo.db.WithContext(ctx).Save(householdModel).Error
 }
 
-func toDomainHousehold(h *model.Household) *household.Household {
+func toDomainHousehold(h *model.Household) (*household.Household, error) {
 	if h == nil {
-		return nil
+		return nil, nil
 	}
+
+	name, err := household.NewName(h.Name)
+	if err != nil {
+		return nil, err
+	}
+	inviteCode, err := household.NewInviteCode(h.InviteCode)
+	if err != nil {
+		return nil, err
+	}
+
 	return &household.Household{
-		ID:         h.ID,
-		Name:       h.Name,
-		InviteCode: h.InviteCode,
+		ID:         household.HouseholdID(h.ID),
+		Name:       name,
+		InviteCode: inviteCode,
 		CreatedAt:  h.CreatedAt,
 		UpdatedAt:  h.UpdatedAt,
-	}
+	}, nil
 }
 
 func toModelHousehold(h *household.Household) *model.Household {
@@ -83,9 +93,9 @@ func toModelHousehold(h *household.Household) *model.Household {
 		return nil
 	}
 	return &model.Household{
-		ID:         h.ID,
-		Name:       h.Name,
-		InviteCode: h.InviteCode,
+		ID:         h.ID.Value(),
+		Name:       h.Name.Value(),
+		InviteCode: h.InviteCode.Value(),
 		CreatedAt:  h.CreatedAt,
 		UpdatedAt:  h.UpdatedAt,
 	}

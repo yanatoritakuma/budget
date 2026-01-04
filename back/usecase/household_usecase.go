@@ -44,7 +44,12 @@ func (hu *householdUsecase) GenerateInviteCode(userID uint) (string, error) {
 	}
 
 	// Generate a unique invite code
-	inviteCode := utils.GenerateRandomString(16)
+	inviteCodeStr := utils.GenerateRandomString(household.InviteCodeLength)
+	inviteCode, err := household.NewInviteCode(inviteCodeStr)
+	if err != nil {
+		// This should theoretically not happen if GenerateRandomString is correct
+		return "", fmt.Errorf("failed to create a valid invite code: %w", err)
+	}
 
 	// Save the code to the household
 	domainHousehold.GenerateNewInviteCode(inviteCode)          // Use domain method
@@ -52,5 +57,5 @@ func (hu *householdUsecase) GenerateInviteCode(userID uint) (string, error) {
 		return "", fmt.Errorf("could not save invite code: %w", err)
 	}
 
-	return inviteCode, nil
+	return inviteCode.Value(), nil
 }
