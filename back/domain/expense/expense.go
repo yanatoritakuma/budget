@@ -1,31 +1,54 @@
 package expense
 
-import "time"
+import (
+	"time"
+
+	"github.com/yanatoritakuma/budget/back/domain/user"
+)
 
 type Expense struct {
-	ID        uint
-	Amount    int
-	StoreName string
+	ID        ExpenseID
+	Amount    Amount
+	StoreName StoreName
 	Date      time.Time
-	Category  string
-	Memo      string
+	Category  Category
+	Memo      Memo
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	UserID    uint
-	PayerID   uint
+	UserID    UserID
+	PayerID   PayerID
 }
 
 // NewExpense creates a new Expense domain entity.
 func NewExpense(amount int, storeName string, date time.Time, category string, memo string, userID uint, payerID uint) (*Expense, error) {
-	// TODO: Add validation and business rules here.
+	voAmount, err := NewAmount(amount)
+	if err != nil {
+		return nil, err
+	}
+
+	voStoreName, err := NewStoreName(storeName)
+	if err != nil {
+		return nil, err
+	}
+
+	voCategory, err := NewCategory(category)
+	if err != nil {
+		return nil, err
+	}
+
+	voMemo, err := NewMemo(memo)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Expense{
-		Amount:    amount,
-		StoreName: storeName,
+		Amount:    voAmount,
+		StoreName: voStoreName,
 		Date:      date,
-		Category:  category,
-		Memo:      memo,
-		UserID:    userID,
-		PayerID:   payerID,
+		Category:  voCategory,
+		Memo:      voMemo,
+		UserID:    UserID(user.UserID(userID)),
+		PayerID:   PayerID(user.UserID(payerID)),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}, nil

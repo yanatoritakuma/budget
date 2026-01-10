@@ -9,7 +9,7 @@ import (
 	"github.com/yanatoritakuma/budget/back/usecase"
 )
 
-type IExpenseController interface {
+type ExpenseController interface {
 	CreateExpense(c *gin.Context)
 	GetExpense(c *gin.Context)
 	UpdateExpense(c *gin.Context)
@@ -17,10 +17,10 @@ type IExpenseController interface {
 }
 
 type expenseController struct {
-	eu usecase.IExpenseUsecase
+	eu usecase.ExpenseUsecase
 }
 
-func NewExpenseController(eu usecase.IExpenseUsecase) IExpenseController {
+func NewExpenseController(eu usecase.ExpenseUsecase) ExpenseController {
 	return &expenseController{eu}
 }
 
@@ -43,7 +43,7 @@ func (ec *expenseController) CreateExpense(c *gin.Context) {
 	req.UserId = int(userID)
 
 	// 支出を作成
-	expenseRes, err := ec.eu.CreateExpense(req)
+	expenseRes, err := ec.eu.CreateExpense(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "支出の作成に失敗しました: " + err.Error()})
 		return
@@ -100,7 +100,7 @@ func (ec *expenseController) GetExpense(c *gin.Context) {
 	}
 
 	// 支出データを取得
-	expenses, err := ec.eu.GetExpense(userID, yearInt, monthInt, categoryPtr)
+	expenses, err := ec.eu.GetExpense(c.Request.Context(), userID, yearInt, monthInt, categoryPtr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "支出データの取得に失敗しました: " + err.Error()})
 		return
@@ -133,7 +133,7 @@ func (ec *expenseController) UpdateExpense(c *gin.Context) {
 	}
 
 	// 支出を更新
-	expenseRes, err := ec.eu.UpdateExpense(req, uint(expenseId))
+	expenseRes, err := ec.eu.UpdateExpense(c.Request.Context(), req, uint(expenseId))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "支出の更新に失敗しました: " + err.Error()})
 		return
@@ -152,7 +152,7 @@ func (ec *expenseController) DeleteExpense(c *gin.Context) {
 	}
 
 	// 支出を削除
-	if err := ec.eu.DeleteExpense(uint(expenseId)); err != nil {
+	if err := ec.eu.DeleteExpense(c.Request.Context(), uint(expenseId)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "支出の削除に失敗しました: " + err.Error()})
 		return
 	}

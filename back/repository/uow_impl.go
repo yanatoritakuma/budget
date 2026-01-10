@@ -5,13 +5,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// unitOfWork は IUnitOfWork の実装です。
+// unitOfWork は UnitOfWork の実装です。
 type unitOfWork struct {
 	db *gorm.DB
 }
 
 // NewUnitOfWork は新しい unitOfWork インスタンスを生成します。
-func NewUnitOfWork(db *gorm.DB) usecase.IUnitOfWork {
+func NewUnitOfWork(db *gorm.DB) usecase.UnitOfWork {
 	return &unitOfWork{db: db}
 }
 

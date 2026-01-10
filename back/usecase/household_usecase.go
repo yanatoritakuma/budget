@@ -9,16 +9,16 @@ import (
 	"github.com/yanatoritakuma/budget/back/utils"
 )
 
-type IHouseholdUsecase interface {
+type HouseholdUsecase interface {
 	GenerateInviteCode(userID uint) (string, error)
 }
 
 type householdUsecase struct {
-	hr household.IHouseholdRepository // Changed type
-	ur user.IUserRepository
+	hr household.HouseholdRepository
+	ur user.UserRepository
 }
 
-func NewHouseholdUsecase(hr household.IHouseholdRepository, ur user.IUserRepository) IHouseholdUsecase { // Changed hr type
+func NewHouseholdUsecase(hr household.HouseholdRepository, ur user.UserRepository) HouseholdUsecase { // Changed hr type
 	return &householdUsecase{hr, ur}
 }
 

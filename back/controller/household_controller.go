@@ -8,15 +8,15 @@ import (
 	"github.com/yanatoritakuma/budget/back/usecase"
 )
 
-type IHouseholdController interface {
+type HouseholdController interface {
 	GenerateInviteCode(c *gin.Context)
 }
 
 type householdController struct {
-	hu usecase.IHouseholdUsecase
+	hu usecase.HouseholdUsecase
 }
 
-func NewHouseholdController(hu usecase.IHouseholdUsecase) IHouseholdController {
+func NewHouseholdController(hu usecase.HouseholdUsecase) HouseholdController {
 	return &householdController{hu}
 }
 

@@ -4,8 +4,8 @@ import (
 	"context"
 )
 
-// IUserRepository defines the interface for user data operations.
-type IUserRepository interface {
+// UserRepository defines the interface for user data operations.
+type UserRepository interface {
 	FindByID(ctx context.Context, id uint) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	Create(ctx context.Context, userEntity *User) error

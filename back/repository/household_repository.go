@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var _ household.IHouseholdRepository = (*HouseholdRepositoryImpl)(nil)
+var _ household.HouseholdRepository = (*HouseholdRepositoryImpl)(nil)
 
 // HouseholdRepositoryImpl implements domain.HouseholdRepository using GORM.
 type HouseholdRepositoryImpl struct {
@@ -18,7 +18,7 @@ type HouseholdRepositoryImpl struct {
 }
 
 // NewHouseholdRepositoryImpl creates a new HouseholdRepositoryImpl.
-func NewHouseholdRepositoryImpl(db *gorm.DB) household.IHouseholdRepository {
+func NewHouseholdRepositoryImpl(db *gorm.DB) household.HouseholdRepository {
 	return &HouseholdRepositoryImpl{db: db}
 }
 

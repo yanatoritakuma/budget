@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type IUserUsecase interface {
+type UserUsecase interface {
 	SignUp(user api.SignUpRequest) (api.UserResponse, error)
 	Login(user api.SignUpRequest) (string, error)
 	GetLoggedInUser(tokenString string) (*api.UserResponse, error)
@@ -29,13 +29,13 @@ type IUserUsecase interface {
 }
 
 type userUsecase struct {
-	ur         user.IUserRepository
-	hr         household.IHouseholdRepository
-	uow        IUnitOfWork
+	ur         user.UserRepository
+	hr         household.HouseholdRepository
+	uow        UnitOfWork
 	tokenStore *model.TokenStore
 }
 
-func NewUserUsecase(ur user.IUserRepository, hr household.IHouseholdRepository, uow IUnitOfWork) IUserUsecase {
+func NewUserUsecase(ur user.UserRepository, hr household.HouseholdRepository, uow UnitOfWork) UserUsecase {
 	return &userUsecase{
 		ur:         ur,
 		hr:         hr,
