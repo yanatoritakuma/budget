@@ -1,20 +1,46 @@
 package router
 
 import (
+
 	"net/http"
+
 	"os"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/yanatoritakuma/budget/back/controller"
-)
 
-func NewRouter(
-	uc controller.IUserController,
-	ec controller.IExpenseController,
-	hc controller.IHouseholdController,
-) *gin.Engine {
+
+	"github.com/gin-contrib/cors"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/yanatoritakuma/budget/back/controller"
+
+		"github.com/yanatoritakuma/budget/back/domain/household" // Added for IHouseholdRepository
+
+		"github.com/yanatoritakuma/budget/back/domain/user"     // Added for IUserRepository
+
+		"github.com/yanatoritakuma/budget/back/usecase"          // Added
+
+		"gorm.io/gorm"                                           // Added
+
+	)
+
+	
+
+	func NewRouter(
+
+		db *gorm.DB,
+
+		ec controller.IExpenseController,
+
+		ur user.IUserRepository,
+
+		hr household.IHouseholdRepository,
+
+		uow usecase.IUnitOfWork,
+
+	) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -42,17 +68,26 @@ func NewRouter(
 		c.Next()
 	})
 
+	// --- Dependency Injection for Household module ---
+	householdUsecase := usecase.NewHouseholdUsecase(hr, ur)
+	householdController := controller.NewHouseholdController(householdUsecase)
+	// --- End Dependency Injection for Household module ---
+
+	// --- Dependency Injection for User module ---
+	userUsecase := usecase.NewUserUsecase(ur, hr, uow)
+	userController := controller.NewUserController(userUsecase)
+	// --- End Dependency Injection for User module ---
 
 	// CSRF保護を適用
-	r.Use(csrfMiddleware(uc))
+	r.Use(csrfMiddleware(userController))
 
 	// -------------------------
 	// 認証不要ルート
 	// -------------------------
-	r.POST("/signup", gin.HandlerFunc(uc.SignUp))
-	r.POST("/login", gin.HandlerFunc(uc.LogIn))
-	r.POST("/logout", gin.HandlerFunc(uc.LogOut))
-	r.GET("/csrf", gin.HandlerFunc(uc.CsrfToken))
+	r.POST("/signup", gin.HandlerFunc(userController.SignUp))
+	r.POST("/login", gin.HandlerFunc(userController.LogIn))
+	r.POST("/logout", gin.HandlerFunc(userController.LogOut))
+	r.GET("/csrf", gin.HandlerFunc(userController.CsrfToken))
 
 	// -------------------------
 	// 認証必須ルート
@@ -60,9 +95,9 @@ func NewRouter(
 	auth := r.Group("/user")
 	auth.Use(authMiddleware())
 	{
-		auth.GET("", gin.HandlerFunc(uc.GetLoggedInUser))
-		auth.PUT("", gin.HandlerFunc(uc.UpdateUser))
-		auth.DELETE("/:userId", gin.HandlerFunc(uc.DeleteUser))
+		auth.GET("", gin.HandlerFunc(userController.GetLoggedInUser))
+		auth.PUT("", gin.HandlerFunc(userController.UpdateUser))
+		auth.DELETE("/:userId", gin.HandlerFunc(userController.DeleteUser))
 	}
 
 	// 支出管理のエンドポイント（認証必要）
@@ -79,11 +114,10 @@ func NewRouter(
 	household := r.Group("/household")
 	household.Use(authMiddleware())
 	{
-		household.GET("/users", gin.HandlerFunc(uc.GetHouseholdUsers))
-		household.POST("/invite-code", gin.HandlerFunc(hc.GenerateInviteCode))
-		household.POST("/join", gin.HandlerFunc(uc.JoinHousehold))
+		household.GET("/users", gin.HandlerFunc(userController.GetHouseholdUsers))
+		household.POST("/invite-code", gin.HandlerFunc(householdController.GenerateInviteCode))
+		household.POST("/join", gin.HandlerFunc(userController.JoinHousehold))
 	}
-
 
 	return r
 }

@@ -28,6 +28,9 @@ type ServerInterface interface {
 	// User registration
 	// (POST /signup)
 	PostSignup(w http.ResponseWriter, r *http.Request)
+	// Update user information
+	// (PUT /user)
+	PutUser(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -61,6 +64,12 @@ func (_ Unimplemented) PutExpensesId(w http.ResponseWriter, r *http.Request, id 
 // User registration
 // (POST /signup)
 func (_ Unimplemented) PostSignup(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update user information
+// (PUT /user)
+func (_ Unimplemented) PutUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -208,6 +217,20 @@ func (siw *ServerInterfaceWrapper) PostSignup(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// PutUser operation middleware
+func (siw *ServerInterfaceWrapper) PutUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -335,6 +358,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/signup", wrapper.PostSignup)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/user", wrapper.PutUser)
 	})
 
 	return r

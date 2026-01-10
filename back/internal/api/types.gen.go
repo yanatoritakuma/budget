@@ -11,12 +11,12 @@ import (
 
 // ExpenseRequest defines model for ExpenseRequest.
 type ExpenseRequest struct {
-	Amount    int                `json:"amount"`
-	Category  string             `json:"category"`
-	Date      openapi_types.Date `json:"date"`
-	Memo      *string            `json:"memo,omitempty"`
-	StoreName string             `json:"store_name"`
-	UserId    int                `json:"user_id"`
+	Amount    int       `json:"amount"`
+	Category  string    `json:"category"`
+	Date      time.Time `json:"date"`
+	Memo      *string   `json:"memo,omitempty"`
+	StoreName string    `json:"store_name"`
+	UserId    int       `json:"user_id"`
 }
 
 // ExpenseResponse defines model for ExpenseResponse.
@@ -50,6 +50,12 @@ type UserResponse struct {
 	Name      string              `json:"name"`
 }
 
+// UserUpdate defines model for UserUpdate.
+type UserUpdate struct {
+	Image *string `json:"image,omitempty"`
+	Name  *string `json:"name,omitempty"`
+}
+
 // GetExpensesParams defines parameters for GetExpenses.
 type GetExpensesParams struct {
 	// Year Year to filter expenses
@@ -70,3 +76,6 @@ type PutExpensesIdJSONRequestBody = ExpenseRequest
 
 // PostSignupJSONRequestBody defines body for PostSignup for application/json ContentType.
 type PostSignupJSONRequestBody = SignUpRequest
+
+// PutUserJSONRequestBody defines body for PutUser for application/json ContentType.
+type PutUserJSONRequestBody = UserUpdate

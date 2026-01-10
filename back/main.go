@@ -22,24 +22,22 @@ var ginLambda *ginadapter.GinLambdaV2
 
 // setupRouter initializes the database, repositories, usecases, controllers and router.
 func setupRouter() *gin.Engine {
-	db := db.NewDB()
+	dbInstance := db.NewDB()
 
 	// Repositories
-	userRepository := repository.NewUserRepository(db)
-	householdRepository := repository.NewHouseholdRepository(db)
-	expenseRepository := repository.NewExpenseRepository(db)
+	userRepoImpl := repository.NewUserRepositoryImpl(dbInstance)
+	householdRepoImpl := repository.NewHouseholdRepositoryImpl(dbInstance)
+	expenseRepository := repository.NewExpenseRepositoryImpl(dbInstance)
+	uow := repository.NewUnitOfWork(dbInstance)
 
 	// Usecases
-	userUsecase := usecase.NewUserUsecase(userRepository, householdRepository)
-	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository, userRepository)
-	householdUsecase := usecase.NewHouseholdUsecase(householdRepository, userRepository)
+	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository, userRepoImpl)
 
 	// Controllers
-	userController := controller.NewUserController(userUsecase)
 	expenseController := controller.NewExpenseController(expenseUsecase)
-	householdController := controller.NewHouseholdController(householdUsecase)
 
-	return router.NewRouter(userController, expenseController, householdController)
+	// New router signature
+	return router.NewRouter(dbInstance, expenseController, userRepoImpl, householdRepoImpl, uow)
 }
 
 func Handler(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
