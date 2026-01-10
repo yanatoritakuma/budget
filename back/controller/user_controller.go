@@ -11,7 +11,7 @@ import (
 	"github.com/yanatoritakuma/budget/back/usecase"
 )
 
-type IUserController interface {
+type UserController interface {
 	SignUp(c *gin.Context)
 	LogIn(c *gin.Context)
 	LogOut(c *gin.Context)
@@ -25,10 +25,10 @@ type IUserController interface {
 }
 
 type userController struct {
-	uu usecase.IUserUsecase
+	uu usecase.UserUsecase
 }
 
-func NewUserController(uu usecase.IUserUsecase) IUserController {
+func NewUserController(uu usecase.UserUsecase) UserController {
 	return &userController{uu}
 }
 

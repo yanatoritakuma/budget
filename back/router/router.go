@@ -1,12 +1,9 @@
 package router
 
 import (
-
 	"net/http"
 
 	"os"
-
-
 
 	"github.com/gin-contrib/cors"
 
@@ -16,31 +13,28 @@ import (
 
 	"github.com/yanatoritakuma/budget/back/controller"
 
-		"github.com/yanatoritakuma/budget/back/domain/household" // Added for IHouseholdRepository
+	"github.com/yanatoritakuma/budget/back/domain/household" // Added for IHouseholdRepository
 
-		"github.com/yanatoritakuma/budget/back/domain/user"     // Added for IUserRepository
+	"github.com/yanatoritakuma/budget/back/domain/user" // Added for IUserRepository
 
-		"github.com/yanatoritakuma/budget/back/usecase"          // Added
+	"github.com/yanatoritakuma/budget/back/usecase" // Added
 
-		"gorm.io/gorm"                                           // Added
+	"gorm.io/gorm" // Added
+)
 
-	)
+func NewRouter(
 
-	
+	db *gorm.DB,
 
-	func NewRouter(
+	ec controller.ExpenseController,
 
-		db *gorm.DB,
+	ur user.UserRepository,
 
-		ec controller.IExpenseController,
+	hr household.HouseholdRepository,
 
-		ur user.IUserRepository,
+	uow usecase.UnitOfWork,
 
-		hr household.IHouseholdRepository,
-
-		uow usecase.IUnitOfWork,
-
-	) *gin.Engine {
+) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -125,7 +119,7 @@ import (
 // ==========================
 // CSRF Middleware
 // ==========================
-func csrfMiddleware(uc controller.IUserController) gin.HandlerFunc {
+func csrfMiddleware(uc controller.UserController) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method == "GET" || c.Request.Method == "OPTIONS" {
 			c.Next()
