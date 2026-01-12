@@ -4,8 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 
@@ -21,9 +26,12 @@ type LineLoginUsecase interface {
 
 // LineLoginUsecaseImpl はLineLoginUsecaseの実装です。
 type LineLoginUsecaseImpl struct {
-	oauth2Config *oauth2.Config
-	userRepo     user.UserRepository
-	userUsecase  UserUsecase // JWT生成のために既存のUserUsecaseを利用
+	oauth2Config    *oauth2.Config
+	userRepo        user.UserRepository
+	userUsecase     UserUsecase // JWT生成のために既存のUserUsecaseを利用
+	jwksCache       map[string]interface{}
+	jwksCacheMutex  sync.RWMutex
+	jwksCacheExpiry time.Time
 }
 
 // NewLineLoginUsecaseImpl はLineLoginUsecaseImplの新しいインスタンスを生成します。
@@ -39,8 +47,10 @@ func NewLineLoginUsecaseImpl(userRepo user.UserRepository, userUsecase UserUseca
 			RedirectURL: os.Getenv("LINE_REDIRECT_URI"),
 			Scopes:      []string{"openid", "profile", "email"},
 		},
-		userRepo:    userRepo,
-		userUsecase: userUsecase,
+		userRepo:        userRepo,
+		userUsecase:     userUsecase,
+		jwksCache:       make(map[string]interface{}),
+		jwksCacheExpiry: time.Now(),
 	}
 }
 
@@ -91,16 +101,25 @@ func (uc *LineLoginUsecaseImpl) LineLoginCallback(ctx context.Context, code, sta
 		return "", fmt.Errorf("id_token not found")
 	}
 
-	// IDトークンのパースと検証
+	// IDトークンのパースと署名検証（JWKS使用）
 	claims := &LineIDTokenClaims{}
+	unverifiedClaims := &LineIDTokenClaims{}
+
+	// トークンをパース（署名検証なし）して kid を取得
+	_, _, err = new(jwt.Parser).ParseUnverified(rawIDToken, unverifiedClaims)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse ID token: %w", err)
+	}
+
+	// kid を使用してキーを取得し、署名を検証
 	_, err = jwt.ParseWithClaims(rawIDToken, claims, func(token *jwt.Token) (interface{}, error) {
-		// LINEのIDトークンはHS256で署名されている。
-		// 実際にはLINEの公開鍵（JWKS URIから取得）で署名を検証すべきだが、
-		// 今回はChannel SecretをHMACの鍵として利用する簡易的な検証を行う。
-		// よりセキュアな実装のためには、LINEのOpenID Connect Discovery Endpointから
-		// JWKS URIを取得し、公開鍵を使って検証するべき。
-		return []byte(os.Getenv("LINE_CHANNEL_SECRET")), nil
-	}, jwt.WithValidMethods([]string{"HS256"}),
+		// LINEの公開鍵を用いて署名を検証
+		publicKey, err := uc.getLinePublicKey(token.Header["kid"].(string))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get LINE public key: %w", err)
+		}
+		return publicKey, nil
+	}, jwt.WithValidMethods([]string{"RS256"}),
 		jwt.WithAudience(uc.oauth2Config.ClientID),
 		jwt.WithIssuer("https://access.line.me"),
 		jwt.WithExpirationRequired(),
@@ -126,4 +145,63 @@ func (uc *LineLoginUsecaseImpl) LineLoginCallback(ctx context.Context, code, sta
 	}
 
 	return jwtToken, nil
+}
+
+// getLinePublicKey はLINEのJWKSから指定された kid に対応する公開鍵を取得します。
+func (uc *LineLoginUsecaseImpl) getLinePublicKey(kid string) (interface{}, error) {
+	// キャッシュをチェック
+	uc.jwksCacheMutex.RLock()
+	if time.Now().Before(uc.jwksCacheExpiry) && len(uc.jwksCache) > 0 {
+		if key, exists := uc.jwksCache[kid]; exists {
+			uc.jwksCacheMutex.RUnlock()
+			return key, nil
+		}
+	}
+	uc.jwksCacheMutex.RUnlock()
+
+	// JWKSを取得
+	jwksURL := "https://api.line.me/oauth2/v2.1/certs"
+	resp, err := http.Get(jwksURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch JWKS from LINE: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to fetch JWKS: status=%d, body=%s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read JWKS response: %w", err)
+	}
+
+	// JWKS JSON をパース
+	var jwks struct {
+		Keys []map[string]interface{} `json:"keys"`
+	}
+	if err := json.Unmarshal(body, &jwks); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JWKS: %w", err)
+	}
+
+	// キャッシュを更新
+	uc.jwksCacheMutex.Lock()
+	uc.jwksCache = make(map[string]interface{})
+	for _, key := range jwks.Keys {
+		if keyID, ok := key["kid"].(string); ok {
+			uc.jwksCache[keyID] = key
+		}
+	}
+	uc.jwksCacheExpiry = time.Now().Add(24 * time.Hour) // 24時間キャッシュ
+	uc.jwksCacheMutex.Unlock()
+
+	// 要求された kid に対応する鍵を取得
+	if key, exists := uc.jwksCache[kid]; exists {
+		// key は map[string]interface{} で、jwt.ParseWithClaims では RSA 公開鍵が必要
+		// jwt ライブラリが自動で処理できるよう、raw JSON を返す
+		return key, nil
+	}
+
+	return nil, fmt.Errorf("public key with kid %s not found in JWKS", kid)
 }
