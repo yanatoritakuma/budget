@@ -1,6 +1,6 @@
 module github.com/yanatoritakuma/budget/back
 
-go 1.21
+go 1.25
 
 require (
 	github.com/aws/aws-lambda-go v1.47.0
@@ -8,10 +8,11 @@ require (
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-chi/chi/v5 v5.0.8
-	github.com/golang-jwt/jwt/v5 v5.0.0
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/joho/godotenv v1.5.1
 	github.com/oapi-codegen/runtime v1.1.2
 	golang.org/x/crypto v0.21.0
+	golang.org/x/oauth2 v0.34.0
 	gorm.io/driver/postgres v1.5.2
 	gorm.io/gorm v1.25.4
 )

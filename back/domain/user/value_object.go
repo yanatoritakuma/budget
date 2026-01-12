@@ -59,3 +59,15 @@ func NewName(name string) (Name, error) {
 func (n Name) Value() string {
 	return string(n)
 }
+
+// LineUserID はLINEのユーザーIDを示す値オブジェクト
+type LineUserID string
+
+func NewLineUserID(id string) (LineUserID, error) {
+	// LINE User IDは必須ではないため、バリデーションは行わない
+	return LineUserID(id), nil
+}
+
+func (l LineUserID) Value() string {
+	return string(l)
+}

@@ -26,6 +26,8 @@ type UserUsecase interface {
 	JoinHousehold(userID uint, inviteCode string) error
 	GetOrGenerateCSRFToken(sessionID string) (string, error)
 	ValidateCSRFToken(sessionID, token string) bool
+	CreateUserForLine(lineUserID, name, image string) (*user.User, error)
+	GenerateToken(userEntity *user.User) (string, error)
 }
 
 type userUsecase struct {
@@ -116,13 +118,11 @@ func (uu *userUsecase) Login(req api.SignUpRequest) (string, error) {
 
 	err = bcrypt.CompareHashAndPassword([]byte(storedUser.Password.Value()), []byte(req.Password))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("invalid credentials")
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": storedUser.ID.Value(),
-		"exp":     time.Now().Add(time.Hour * 12).Unix(),
-	})
-	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET")))
+
+	// 共通化したGenerateTokenを呼び出す
+	tokenString, err := uu.GenerateToken(storedUser)
 	if err != nil {
 		return "", err
 	}
@@ -292,6 +292,78 @@ func (uu *userUsecase) JoinHousehold(userID uint, inviteCode string) error {
 	return nil
 }
 
+// CreateUserForLine はLINEログインからの新規ユーザー登録を処理します。
+// 既にLINEユーザーIDを持つユーザーが存在する場合は、そのユーザーを返します。
+func (uu *userUsecase) CreateUserForLine(lineUserIDStr, name, image string) (*user.User, error) {
+	ctx := context.Background()
+	var domainUser *user.User
+
+	// 既にLineUserIDを持つユーザーがいるか確認
+	// LineUserIDはOptionalなので、存在しない場合は空文字が渡されることを想定
+	if lineUserIDStr != "" {
+		lineUserIDVo, _ := user.NewLineUserID(lineUserIDStr) // エラーは返さないため_で無視
+		existingUser, err := uu.ur.FindByLineUserID(ctx, lineUserIDVo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find user by line user ID: %w", err)
+		}
+		if existingUser != nil {
+			return existingUser, nil // 既存ユーザーを返す
+		}
+	}
+
+	err := uu.uow.Transaction(func(repos Repositories) error {
+		// 新しい世帯を作成
+		householdName := name
+		if householdName == "" {
+			householdName = "Unknown"
+		}
+		domainHousehold, err := household.NewHousehold(
+			fmt.Sprintf("%s's Household", householdName),
+			utils.GenerateRandomString(household.InviteCodeLength),
+		)
+		if err != nil {
+			return err
+		}
+
+		if err := repos.Household.Create(context.Background(), domainHousehold); err != nil {
+			return err
+		}
+
+		// LINEユーザーのメールアドレスとパスワードは仮のものを使用
+		dummyPasswordHash, err := bcrypt.GenerateFromPassword([]byte(utils.GenerateRandomString(16)), 10)
+		if err != nil {
+			return err
+		}
+		dummyEmail := fmt.Sprintf("%s_%s@line.example.com", lineUserIDStr, utils.GenerateRandomString(5)) // ユニークにするためランダムな文字列を追加
+
+		domainUser, err = user.NewUser(
+			dummyEmail,
+			string(dummyPasswordHash),
+			name,
+			image,
+			false, // Admin権限なし
+			domainHousehold.ID.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		lineUserIDVo, _ := user.NewLineUserID(lineUserIDStr)
+		domainUser.LineUserID = lineUserIDVo // LINE User IDを設定
+
+		if err := repos.User.Create(context.Background(), domainUser); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user for LINE login: %w", err)
+	}
+
+	return domainUser, nil
+}
+
 // generateCSRFToken は新しいCSRFトークンを生成し、保存します（内部メソッド）
 func (uu *userUsecase) generateCSRFToken(sessionID string) (string, error) {
 	token := utils.GenerateRandomString(32)
@@ -316,4 +388,17 @@ func (uu *userUsecase) GetOrGenerateCSRFToken(sessionID string) (string, error) 
 // ValidateCSRFToken はCSRFトークンを検証します
 func (uu *userUsecase) ValidateCSRFToken(sessionID, token string) bool {
 	return uu.tokenStore.ValidateToken(sessionID, token)
+}
+
+// GenerateToken は与えられたユーザーエンティティからJWTを生成します。
+func (uu *userUsecase) GenerateToken(userEntity *user.User) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userEntity.ID.Value(),
+		"exp":     time.Now().Add(time.Hour * 12).Unix(),
+	})
+	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET")))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+	return tokenString, nil
 }

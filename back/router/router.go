@@ -30,11 +30,17 @@ func NewRouter(
 
 	ur user.UserRepository,
 
-	hr household.HouseholdRepository,
+		hr household.HouseholdRepository,
 
-	uow usecase.UnitOfWork,
+	
 
-) *gin.Engine {
+		uow usecase.UnitOfWork,
+
+	
+
+		userUsecase usecase.UserUsecase,
+
+	) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -68,9 +74,14 @@ func NewRouter(
 	// --- End Dependency Injection for Household module ---
 
 	// --- Dependency Injection for User module ---
-	userUsecase := usecase.NewUserUsecase(ur, hr, uow)
+	// userUsecase := usecase.NewUserUsecase(ur, hr, uow) // main.goから引数として受け取るため不要
 	userController := controller.NewUserController(userUsecase)
 	// --- End Dependency Injection for User module ---
+
+	// --- Dependency Injection for LINE Login module ---
+	lineLoginUsecase := usecase.NewLineLoginUsecaseImpl(ur, userUsecase)
+	lineLoginController := controller.NewLineLoginController(lineLoginUsecase)
+	// --- End Dependency Injection for LINE Login module ---
 
 	// CSRF保護を適用
 	r.Use(csrfMiddleware(userController))
@@ -82,6 +93,9 @@ func NewRouter(
 	r.POST("/login", gin.HandlerFunc(userController.LogIn))
 	r.POST("/logout", gin.HandlerFunc(userController.LogOut))
 	r.GET("/csrf", gin.HandlerFunc(userController.CsrfToken))
+	// LINE Login routes
+	r.GET("/api/v1/auth/line/login", gin.HandlerFunc(lineLoginController.Login))
+	r.GET("/api/v1/auth/line/callback", gin.HandlerFunc(lineLoginController.Callback))
 
 	// -------------------------
 	// 認証必須ルート

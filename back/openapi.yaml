@@ -26,6 +26,54 @@ paths:
           description: Invalid input
         '500':
           description: Internal server error
+  /api/v1/auth/line/login:
+    get:
+      tags:
+        - auth
+      summary: Initiate LINE login flow
+      description: Returns the LINE authorization URL.
+      responses:
+        '200':
+          description: Successfully returned LINE authorization URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  auth_url:
+                    type: string
+                    format: uri
+                    description: LINE authorization URL
+        '500':
+          description: Internal server error
+  /api/v1/auth/line/callback:
+    get:
+      tags:
+        - auth
+      summary: LINE login callback
+      description: Handles the callback from LINE after user authentication. Sets JWT cookie and redirects.
+      parameters:
+        - in: query
+          name: code
+          schema:
+            type: string
+          required: true
+          description: Authorization code from LINE
+        - in: query
+          name: state
+          schema:
+            type: string
+          required: true
+          description: State parameter for CSRF protection
+      responses:
+        '302':
+          description: Redirect to frontend application after successful login
+        '400':
+          description: Invalid code or state
+        '401':
+          description: Invalid CSRF state
+        '500':
+          description: Internal server error
   /user:
     put:
       tags:

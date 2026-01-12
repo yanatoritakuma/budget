@@ -8,6 +8,7 @@ import (
 type UserRepository interface {
 	FindByID(ctx context.Context, id uint) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
+	FindByLineUserID(ctx context.Context, lineUserID LineUserID) (*User, error)
 	Create(ctx context.Context, userEntity *User) error
 	Update(ctx context.Context, userEntity *User) error
 	Delete(ctx context.Context, id uint) error

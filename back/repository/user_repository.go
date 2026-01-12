@@ -46,6 +46,18 @@ func (repo *UserRepositoryImpl) FindByEmail(ctx context.Context, email string) (
 	return toDomainUser(&userModel)
 }
 
+// FindByLineUserID finds a user by Line User ID.
+func (repo *UserRepositoryImpl) FindByLineUserID(ctx context.Context, lineUserID user.LineUserID) (*user.User, error) {
+	var userModel model.User
+	if err := repo.db.WithContext(ctx).Where("line_user_id = ?", lineUserID.Value()).First(&userModel).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // User not found
+		}
+		return nil, err
+	}
+	return toDomainUser(&userModel)
+}
+
 // Create creates a new user.
 func (repo *UserRepositoryImpl) Create(ctx context.Context, userEntity *user.User) error {
 	userModel := toModelUser(userEntity)
@@ -110,9 +122,15 @@ func toDomainUser(userModel *model.User) (*user.User, error) {
 		return nil, err
 	}
 
+	lineUserID, err := user.NewLineUserID(userModel.LineUserID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &user.User{
 		ID:          user.UserID(userModel.ID),
 		Email:       email,
+		LineUserID:  lineUserID,
 		Password:    password,
 		Name:        name,
 		Image:       userModel.Image,
@@ -131,6 +149,7 @@ func toModelUser(userEntity *user.User) *model.User {
 	return &model.User{
 		ID:          userEntity.ID.Value(),
 		Email:       userEntity.Email.Value(),
+		LineUserID:  userEntity.LineUserID.Value(),
 		Password:    userEntity.Password.Value(),
 		Name:        userEntity.Name.Value(),
 		Image:       userEntity.Image,
