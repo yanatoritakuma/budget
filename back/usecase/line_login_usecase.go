@@ -113,13 +113,26 @@ func (uc *LineLoginUsecaseImpl) LineLoginCallback(ctx context.Context, code, sta
 
 	// kid を使用してキーを取得し、署名を検証
 	_, err = jwt.ParseWithClaims(rawIDToken, claims, func(token *jwt.Token) (interface{}, error) {
-		// LINEの公開鍵を用いて署名を検証
-		publicKey, err := uc.getLinePublicKey(token.Header["kid"].(string))
-		if err != nil {
-			return nil, fmt.Errorf("failed to get LINE public key: %w", err)
+		// トークンのアルゴリズムを確認
+		switch token.Method.(type) {
+		case *jwt.SigningMethodRSA:
+			// RSA (RS256) の場合は公開鍵を取得
+			kid, ok := token.Header["kid"].(string)
+			if !ok {
+				return nil, fmt.Errorf("kid not found in token header")
+			}
+			publicKey, err := uc.getLinePublicKey(kid)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get LINE public key: %w", err)
+			}
+			return publicKey, nil
+		case *jwt.SigningMethodHMAC:
+			// HMAC (HS256) の場合はチャネルシークレットを使用
+			return []byte(os.Getenv("LINE_CHANNEL_SECRET")), nil
+		default:
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return publicKey, nil
-	}, jwt.WithValidMethods([]string{"RS256"}),
+	},
 		jwt.WithAudience(uc.oauth2Config.ClientID),
 		jwt.WithIssuer("https://access.line.me"),
 		jwt.WithExpirationRequired(),
