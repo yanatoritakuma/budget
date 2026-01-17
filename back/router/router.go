@@ -135,6 +135,11 @@ func NewRouter(
 // ==========================
 func csrfMiddleware(uc controller.UserController) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 保護対象外のパス
+		if c.Request.URL.Path == "/login" || c.Request.URL.Path == "/signup" {
+			c.Next()
+			return
+		}
 		if c.Request.Method == "GET" || c.Request.Method == "OPTIONS" {
 			c.Next()
 			return
