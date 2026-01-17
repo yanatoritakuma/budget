@@ -94,9 +94,15 @@ func (uu *userUsecase) SignUp(req api.SignUpRequest) (api.UserResponse, error) {
 		return api.UserResponse{}, err
 	}
 
+	var emailPtr *openapi_types.Email
+	if domainUser.Email != nil {
+		emailVal := openapi_types.Email(domainUser.Email.Value())
+		emailPtr = &emailVal
+	}
+
 	resUser := api.UserResponse{
 		Id:        int(domainUser.ID.Value()),
-		Email:     openapi_types.Email(domainUser.Email.Value()),
+		Email:     emailPtr,
 		Name:      domainUser.Name.Value(),
 		Image:     &domainUser.Image,
 		Admin:     domainUser.Admin,
@@ -155,9 +161,13 @@ func (uu *userUsecase) GetLoggedInUser(tokenString string) (*api.UserResponse, e
 			return nil, fmt.Errorf("user not found")
 		}
 
+		var emailPtr *openapi_types.Email
+		if domainUser.Email != nil {
+			emailVal := openapi_types.Email(domainUser.Email.Value())
+			emailPtr = &emailVal
+		}
+
 		id := int(domainUser.ID.Value())
-		emailStr := domainUser.Email.Value()
-		email := openapi_types.Email(emailStr)
 		name := domainUser.Name.Value()
 		image := domainUser.Image
 		admin := domainUser.Admin
@@ -165,7 +175,7 @@ func (uu *userUsecase) GetLoggedInUser(tokenString string) (*api.UserResponse, e
 
 		return &api.UserResponse{
 			Id:        id,
-			Email:     email,
+			Email:     emailPtr,
 			Name:      name,
 			Image:     &image,
 			Admin:     admin,
@@ -202,9 +212,15 @@ func (uu *userUsecase) UpdateUser(id uint, req api.UserUpdate) (api.UserResponse
 		return api.UserResponse{}, err
 	}
 
+	var emailPtr *openapi_types.Email
+	if existingUser.Email != nil {
+		emailVal := openapi_types.Email(existingUser.Email.Value())
+		emailPtr = &emailVal
+	}
+
 	resUser := api.UserResponse{
 		Id:        int(existingUser.ID.Value()),
-		Email:     openapi_types.Email(existingUser.Email.Value()),
+		Email:     emailPtr,
 		Name:      existingUser.Name.Value(),
 		Image:     &existingUser.Image,
 		Admin:     existingUser.Admin,
@@ -244,9 +260,13 @@ func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]api.UserResponse, error
 	// Format the response
 	var resUsers []api.UserResponse
 	for _, domainUser := range householdUsers {
+		var emailPtr *openapi_types.Email
+		if domainUser.Email != nil {
+			emailVal := openapi_types.Email(domainUser.Email.Value())
+			emailPtr = &emailVal
+		}
+
 		id := int(domainUser.ID.Value())
-		emailStr := domainUser.Email.Value()
-		email := openapi_types.Email(emailStr)
 		name := domainUser.Name.Value()
 		image := domainUser.Image
 		admin := domainUser.Admin
@@ -254,7 +274,7 @@ func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]api.UserResponse, error
 
 		resUsers = append(resUsers, api.UserResponse{
 			Id:        id,
-			Email:     email,
+			Email:     emailPtr,
 			Name:      name,
 			Image:     &image,
 			Admin:     admin,
@@ -298,10 +318,14 @@ func (uu *userUsecase) CreateUserForLine(lineUserIDStr, name, image string) (*us
 	ctx := context.Background()
 	var domainUser *user.User
 
+	lineUserIDVo, err := user.NewLineUserID(lineUserIDStr)
+	if err != nil {
+		// NewLineUserIDは現在エラーを返さないが、将来のためにチェック
+		return nil, fmt.Errorf("invalid line user id: %w", err)
+	}
+
 	// 既にLineUserIDを持つユーザーがいるか確認
-	// LineUserIDはOptionalなので、存在しない場合は空文字が渡されることを想定
-	if lineUserIDStr != "" {
-		lineUserIDVo, _ := user.NewLineUserID(lineUserIDStr) // エラーは返さないため_で無視
+	if lineUserIDVo != nil {
 		existingUser, err := uu.ur.FindByLineUserID(ctx, lineUserIDVo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to find user by line user ID: %w", err)
@@ -311,7 +335,7 @@ func (uu *userUsecase) CreateUserForLine(lineUserIDStr, name, image string) (*us
 		}
 	}
 
-	err := uu.uow.Transaction(func(repos Repositories) error {
+	err = uu.uow.Transaction(func(repos Repositories) error {
 		// 新しい世帯を作成
 		householdName := name
 		if householdName == "" {
@@ -329,15 +353,14 @@ func (uu *userUsecase) CreateUserForLine(lineUserIDStr, name, image string) (*us
 			return err
 		}
 
-		// LINEユーザーのメールアドレスとパスワードは仮のものを使用
+		// LINEユーザーのメールアドレスは空文字、パスワードは仮のものを設定
 		dummyPasswordHash, err := bcrypt.GenerateFromPassword([]byte(utils.GenerateRandomString(16)), 10)
 		if err != nil {
 			return err
 		}
-		dummyEmail := fmt.Sprintf("%s_%s@line.example.com", lineUserIDStr, utils.GenerateRandomString(5)) // ユニークにするためランダムな文字列を追加
 
 		domainUser, err = user.NewUser(
-			dummyEmail,
+			"", // emailは空文字
 			string(dummyPasswordHash),
 			name,
 			image,
@@ -347,7 +370,6 @@ func (uu *userUsecase) CreateUserForLine(lineUserIDStr, name, image string) (*us
 		if err != nil {
 			return err
 		}
-		lineUserIDVo, _ := user.NewLineUserID(lineUserIDStr)
 		domainUser.LineUserID = lineUserIDVo // LINE User IDを設定
 
 		if err := repos.User.Create(context.Background(), domainUser); err != nil {

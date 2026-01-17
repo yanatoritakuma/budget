@@ -13,6 +13,12 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// LINE login callback
+	// (GET /api/v1/auth/line/callback)
+	GetApiV1AuthLineCallback(w http.ResponseWriter, r *http.Request, params GetApiV1AuthLineCallbackParams)
+	// Initiate LINE login flow
+	// (GET /api/v1/auth/line/login)
+	GetApiV1AuthLineLogin(w http.ResponseWriter, r *http.Request)
 	// Get expenses
 	// (GET /expenses)
 	GetExpenses(w http.ResponseWriter, r *http.Request, params GetExpensesParams)
@@ -36,6 +42,18 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// LINE login callback
+// (GET /api/v1/auth/line/callback)
+func (_ Unimplemented) GetApiV1AuthLineCallback(w http.ResponseWriter, r *http.Request, params GetApiV1AuthLineCallbackParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Initiate LINE login flow
+// (GET /api/v1/auth/line/login)
+func (_ Unimplemented) GetApiV1AuthLineLogin(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // Get expenses
 // (GET /expenses)
@@ -81,6 +99,69 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// GetApiV1AuthLineCallback operation middleware
+func (siw *ServerInterfaceWrapper) GetApiV1AuthLineCallback(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetApiV1AuthLineCallbackParams
+
+	// ------------- Required query parameter "code" -------------
+
+	if paramValue := r.URL.Query().Get("code"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "code"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "code", r.URL.Query(), &params.Code)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "state" -------------
+
+	if paramValue := r.URL.Query().Get("state"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "state", r.URL.Query(), &params.State)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetApiV1AuthLineCallback(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetApiV1AuthLineLogin operation middleware
+func (siw *ServerInterfaceWrapper) GetApiV1AuthLineLogin(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetApiV1AuthLineLogin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetExpenses operation middleware
 func (siw *ServerInterfaceWrapper) GetExpenses(w http.ResponseWriter, r *http.Request) {
@@ -344,6 +425,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/auth/line/callback", wrapper.GetApiV1AuthLineCallback)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/auth/line/login", wrapper.GetApiV1AuthLineLogin)
+	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/expenses", wrapper.GetExpenses)
 	})

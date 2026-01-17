@@ -4,8 +4,8 @@ import "time"
 
 type User struct {
 	ID          UserID
-	Email       Email
-	LineUserID  LineUserID
+	Email       *Email
+	LineUserID  *LineUserID
 	Password    Password
 	Name        Name
 	Image       string
