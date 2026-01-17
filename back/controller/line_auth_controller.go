@@ -87,9 +87,37 @@ func (ctrl *LineLoginControllerImpl) Callback(c *gin.Context) {
 	domain := extractHostname(os.Getenv("FE_URL"))
 	isSecure := os.Getenv("GO_ENV") != "dev" // 本番環境では secure=true
 
-	// JWTをCookieにセット
-	c.SetCookie("token", jwtToken, 60*60*12, "/", domain, isSecure, true) // 12時間有効
-	c.SetCookie("logged_in", "true", 60*60*12, "/", domain, isSecure, false)
+	// http.Cookie構造体を作成
+	tokenCookie := &http.Cookie{
+		Name:     "token",
+		Value:    jwtToken,
+		MaxAge:   60 * 60 * 12, // 12時間
+		Path:     "/",
+		Domain:   domain,
+		Secure:   isSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	}
+	loggedInCookie := &http.Cookie{
+		Name:     "logged_in",
+		Value:    "true",
+		MaxAge:   60 * 60 * 12, // 12時間
+		Path:     "/",
+		Domain:   domain,
+		Secure:   isSecure,
+		HttpOnly: false,
+		SameSite: http.SameSiteNoneMode,
+	}
+
+	// 開発環境など非セキュアな場合はSameSiteをLaxに設定
+	if !isSecure {
+		tokenCookie.SameSite = http.SameSiteLaxMode
+		loggedInCookie.SameSite = http.SameSiteLaxMode
+	}
+
+	// レスポンスヘッダーに直接Cookieを設定
+	http.SetCookie(c.Writer, tokenCookie)
+	http.SetCookie(c.Writer, loggedInCookie)
 
 	// フロントエンドのログイン成功時のリダイレクトURL
 	redirectURL := fmt.Sprintf("%s/budget", os.Getenv("FE_URL")) // FE_URLはフロントエンドのドメイン
