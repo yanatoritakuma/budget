@@ -26,6 +26,8 @@ type UserUsecase interface {
 	JoinHousehold(userID uint, inviteCode string) error
 	GetOrGenerateCSRFToken(sessionID string) (string, error)
 	ValidateCSRFToken(sessionID, token string) bool
+	CreateUserForLine(lineUserID, name, image string) (*user.User, error)
+	GenerateToken(userEntity *user.User) (string, error)
 }
 
 type userUsecase struct {
@@ -92,9 +94,15 @@ func (uu *userUsecase) SignUp(req api.SignUpRequest) (api.UserResponse, error) {
 		return api.UserResponse{}, err
 	}
 
+	var emailPtr *openapi_types.Email
+	if domainUser.Email != nil {
+		emailVal := openapi_types.Email(domainUser.Email.Value())
+		emailPtr = &emailVal
+	}
+
 	resUser := api.UserResponse{
 		Id:        int(domainUser.ID.Value()),
-		Email:     openapi_types.Email(domainUser.Email.Value()),
+		Email:     emailPtr,
 		Name:      domainUser.Name.Value(),
 		Image:     &domainUser.Image,
 		Admin:     domainUser.Admin,
@@ -116,13 +124,11 @@ func (uu *userUsecase) Login(req api.SignUpRequest) (string, error) {
 
 	err = bcrypt.CompareHashAndPassword([]byte(storedUser.Password.Value()), []byte(req.Password))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("invalid credentials")
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": storedUser.ID.Value(),
-		"exp":     time.Now().Add(time.Hour * 12).Unix(),
-	})
-	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET")))
+
+	// 共通化したGenerateTokenを呼び出す
+	tokenString, err := uu.GenerateToken(storedUser)
 	if err != nil {
 		return "", err
 	}
@@ -155,9 +161,13 @@ func (uu *userUsecase) GetLoggedInUser(tokenString string) (*api.UserResponse, e
 			return nil, fmt.Errorf("user not found")
 		}
 
+		var emailPtr *openapi_types.Email
+		if domainUser.Email != nil {
+			emailVal := openapi_types.Email(domainUser.Email.Value())
+			emailPtr = &emailVal
+		}
+
 		id := int(domainUser.ID.Value())
-		emailStr := domainUser.Email.Value()
-		email := openapi_types.Email(emailStr)
 		name := domainUser.Name.Value()
 		image := domainUser.Image
 		admin := domainUser.Admin
@@ -165,7 +175,7 @@ func (uu *userUsecase) GetLoggedInUser(tokenString string) (*api.UserResponse, e
 
 		return &api.UserResponse{
 			Id:        id,
-			Email:     email,
+			Email:     emailPtr,
 			Name:      name,
 			Image:     &image,
 			Admin:     admin,
@@ -202,9 +212,15 @@ func (uu *userUsecase) UpdateUser(id uint, req api.UserUpdate) (api.UserResponse
 		return api.UserResponse{}, err
 	}
 
+	var emailPtr *openapi_types.Email
+	if existingUser.Email != nil {
+		emailVal := openapi_types.Email(existingUser.Email.Value())
+		emailPtr = &emailVal
+	}
+
 	resUser := api.UserResponse{
 		Id:        int(existingUser.ID.Value()),
-		Email:     openapi_types.Email(existingUser.Email.Value()),
+		Email:     emailPtr,
 		Name:      existingUser.Name.Value(),
 		Image:     &existingUser.Image,
 		Admin:     existingUser.Admin,
@@ -244,9 +260,13 @@ func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]api.UserResponse, error
 	// Format the response
 	var resUsers []api.UserResponse
 	for _, domainUser := range householdUsers {
+		var emailPtr *openapi_types.Email
+		if domainUser.Email != nil {
+			emailVal := openapi_types.Email(domainUser.Email.Value())
+			emailPtr = &emailVal
+		}
+
 		id := int(domainUser.ID.Value())
-		emailStr := domainUser.Email.Value()
-		email := openapi_types.Email(emailStr)
 		name := domainUser.Name.Value()
 		image := domainUser.Image
 		admin := domainUser.Admin
@@ -254,7 +274,7 @@ func (uu *userUsecase) GetHouseholdUsers(userID uint) ([]api.UserResponse, error
 
 		resUsers = append(resUsers, api.UserResponse{
 			Id:        id,
-			Email:     email,
+			Email:     emailPtr,
 			Name:      name,
 			Image:     &image,
 			Admin:     admin,
@@ -292,6 +312,80 @@ func (uu *userUsecase) JoinHousehold(userID uint, inviteCode string) error {
 	return nil
 }
 
+// CreateUserForLine はLINEログインからの新規ユーザー登録を処理します。
+// 既にLINEユーザーIDを持つユーザーが存在する場合は、そのユーザーを返します。
+func (uu *userUsecase) CreateUserForLine(lineUserIDStr, name, image string) (*user.User, error) {
+	ctx := context.Background()
+	var domainUser *user.User
+
+	lineUserIDVo, err := user.NewLineUserID(lineUserIDStr)
+	if err != nil {
+		// NewLineUserIDは現在エラーを返さないが、将来のためにチェック
+		return nil, fmt.Errorf("invalid line user id: %w", err)
+	}
+
+	// 既にLineUserIDを持つユーザーがいるか確認
+	if lineUserIDVo != nil {
+		existingUser, err := uu.ur.FindByLineUserID(ctx, lineUserIDVo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find user by line user ID: %w", err)
+		}
+		if existingUser != nil {
+			return existingUser, nil // 既存ユーザーを返す
+		}
+	}
+
+	err = uu.uow.Transaction(func(repos Repositories) error {
+		// 新しい世帯を作成
+		householdName := name
+		if householdName == "" {
+			householdName = "Unknown"
+		}
+		domainHousehold, err := household.NewHousehold(
+			fmt.Sprintf("%s's Household", householdName),
+			utils.GenerateRandomString(household.InviteCodeLength),
+		)
+		if err != nil {
+			return err
+		}
+
+		if err := repos.Household.Create(context.Background(), domainHousehold); err != nil {
+			return err
+		}
+
+		// LINEユーザーのメールアドレスは空文字、パスワードは仮のものを設定
+		dummyPasswordHash, err := bcrypt.GenerateFromPassword([]byte(utils.GenerateRandomString(16)), 10)
+		if err != nil {
+			return err
+		}
+
+		domainUser, err = user.NewUser(
+			"", // emailは空文字
+			string(dummyPasswordHash),
+			name,
+			image,
+			false, // Admin権限なし
+			domainHousehold.ID.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		domainUser.LineUserID = lineUserIDVo // LINE User IDを設定
+
+		if err := repos.User.Create(context.Background(), domainUser); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user for LINE login: %w", err)
+	}
+
+	return domainUser, nil
+}
+
 // generateCSRFToken は新しいCSRFトークンを生成し、保存します（内部メソッド）
 func (uu *userUsecase) generateCSRFToken(sessionID string) (string, error) {
 	token := utils.GenerateRandomString(32)
@@ -316,4 +410,17 @@ func (uu *userUsecase) GetOrGenerateCSRFToken(sessionID string) (string, error) 
 // ValidateCSRFToken はCSRFトークンを検証します
 func (uu *userUsecase) ValidateCSRFToken(sessionID, token string) bool {
 	return uu.tokenStore.ValidateToken(sessionID, token)
+}
+
+// GenerateToken は与えられたユーザーエンティティからJWTを生成します。
+func (uu *userUsecase) GenerateToken(userEntity *user.User) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userEntity.ID.Value(),
+		"exp":     time.Now().Add(time.Hour * 12).Unix(),
+	})
+	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET")))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+	return tokenString, nil
 }

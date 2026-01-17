@@ -78,6 +78,32 @@ export default function Auth() {
     }
   };
 
+  const handleLineLogin = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/line/login`, {
+        method: "GET",
+        headers: await createHeaders(),
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.auth_url) {
+          window.location.href = data.auth_url; // LINE認証ページへリダイレクト
+        } else {
+          alert("LINE認証URLが取得できませんでした。");
+        }
+      } else {
+        alert("LINEログイン開始に失敗しました。");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("LINEログイン開始中にエラーが発生しました。");
+    }
+  };
+
+
   return (
     <section className="authInputBox">
       <h2>{isLogin ? "ログイン" : "新規登録"}</h2>
@@ -133,7 +159,14 @@ export default function Auth() {
         <ButtonBox onClick={() => onClickAuth()}>
           {isLogin ? "ログイン" : "登録"}
         </ButtonBox>
+
+        {/* LINEログインボタンの追加 */}
+        <ButtonBox onClick={handleLineLogin}>
+          LINEでログイン
+        </ButtonBox>
       </div>
     </section>
   );
 }
+
+

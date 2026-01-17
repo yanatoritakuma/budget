@@ -42,18 +42,27 @@ type SignUpRequest struct {
 
 // UserResponse defines model for UserResponse.
 type UserResponse struct {
-	Admin     bool                `json:"admin"`
-	CreatedAt time.Time           `json:"created_at"`
-	Email     openapi_types.Email `json:"email"`
-	Id        int                 `json:"id"`
-	Image     *string             `json:"image,omitempty"`
-	Name      string              `json:"name"`
+	Admin     bool                 `json:"admin"`
+	CreatedAt time.Time            `json:"created_at"`
+	Email     *openapi_types.Email `json:"email"`
+	Id        int                  `json:"id"`
+	Image     *string              `json:"image,omitempty"`
+	Name      string               `json:"name"`
 }
 
 // UserUpdate defines model for UserUpdate.
 type UserUpdate struct {
 	Image *string `json:"image,omitempty"`
 	Name  *string `json:"name,omitempty"`
+}
+
+// GetApiV1AuthLineCallbackParams defines parameters for GetApiV1AuthLineCallback.
+type GetApiV1AuthLineCallbackParams struct {
+	// Code Authorization code from LINE
+	Code string `form:"code" json:"code"`
+
+	// State State parameter for CSRF protection
+	State string `form:"state" json:"state"`
 }
 
 // GetExpensesParams defines parameters for GetExpenses.

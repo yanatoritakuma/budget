@@ -32,12 +32,13 @@ func setupRouter() *gin.Engine {
 
 	// Usecases
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository, userRepoImpl)
+	userUsecase := usecase.NewUserUsecase(userRepoImpl, householdRepoImpl, uow)
 
 	// Controllers
 	expenseController := controller.NewExpenseController(expenseUsecase)
 
 	// New router signature
-	return router.NewRouter(dbInstance, expenseController, userRepoImpl, householdRepoImpl, uow)
+	return router.NewRouter(dbInstance, expenseController, userRepoImpl, householdRepoImpl, uow, userUsecase)
 }
 
 func Handler(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

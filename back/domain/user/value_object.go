@@ -16,16 +16,23 @@ func (id UserID) Value() uint {
 // Email はメールアドレスを示す値オブジェクト
 type Email string
 
-func NewEmail(address string) (Email, error) {
+func NewEmail(address string) (*Email, error) {
+	if address == "" {
+		return nil, nil
+	}
 	_, err := mail.ParseAddress(address)
 	if err != nil {
-		return "", fmt.Errorf("無効なメールアドレス形式です: %w", err)
+		return nil, fmt.Errorf("無効なメールアドレス形式です: %w", err)
 	}
-	return Email(address), nil
+	email := Email(address)
+	return &email, nil
 }
 
-func (e Email) Value() string {
-	return string(e)
+func (e *Email) Value() string {
+	if e == nil {
+		return ""
+	}
+	return string(*e)
 }
 
 // Password はハッシュ化されたパスワードを示す値オブジェクト
@@ -58,4 +65,23 @@ func NewName(name string) (Name, error) {
 
 func (n Name) Value() string {
 	return string(n)
+}
+
+// LineUserID はLINEのユーザーIDを示す値オブジェクト
+type LineUserID string
+
+func NewLineUserID(id string) (*LineUserID, error) {
+	if id == "" {
+		return nil, nil
+	}
+	// LINE User IDは必須ではないため、バリデーションは行わない
+	lineID := LineUserID(id)
+	return &lineID, nil
+}
+
+func (l *LineUserID) Value() string {
+	if l == nil {
+		return ""
+	}
+	return string(*l)
 }

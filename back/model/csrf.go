@@ -67,6 +67,13 @@ func (s *TokenStore) GetToken(sessionID string) (string, bool) {
 	}
 
 	return storedToken.Token, true
+}
+
+// DeleteToken は指定されたセッションIDのトークンを削除します
+func (s *TokenStore) DeleteToken(sessionID string) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	delete(s.tokens, sessionID)
 } // CleanupExpiredTokens は期限切れのトークンを削除します
 func (s *TokenStore) CleanupExpiredTokens() {
 	s.mutex.Lock()
