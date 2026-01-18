@@ -30,17 +30,13 @@ func NewRouter(
 
 	ur user.UserRepository,
 
-		hr household.HouseholdRepository,
+	hr household.HouseholdRepository,
 
-	
+	uow usecase.UnitOfWork,
 
-		uow usecase.UnitOfWork,
+	userUsecase usecase.UserUsecase,
 
-	
-
-		userUsecase usecase.UserUsecase,
-
-	) *gin.Engine {
+) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -136,10 +132,10 @@ func NewRouter(
 func csrfMiddleware(uc controller.UserController) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 保護対象外のパス
-		if c.Request.URL.Path == "/login" || c.Request.URL.Path == "/signup" {
-			c.Next()
-			return
-		}
+		// if c.Request.URL.Path == "/login" || c.Request.URL.Path == "/signup" {
+		// 	c.Next()
+		// 	return
+		// }
 		if c.Request.Method == "GET" || c.Request.Method == "OPTIONS" {
 			c.Next()
 			return
