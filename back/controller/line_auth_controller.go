@@ -2,7 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/usecase"
+	"github.com/yanatoritakuma/budget/back/utils"
 )
 
 // LineLoginController はLINEログインコントローラのインターフェースです。
@@ -84,44 +84,40 @@ func (ctrl *LineLoginControllerImpl) Callback(c *gin.Context) {
 	}
 
 	// Cookie domain を安全に設定（ホスト名のみ）
-	domain := extractHostname(os.Getenv("FE_URL"))
+	domain := utils.ExtractHostname(os.Getenv("FE_URL"))
 	isSecure := os.Getenv("GO_ENV") != "dev" // 本番環境では secure=true
 
-	// JWTをCookieにセット
-	c.SetCookie("token", jwtToken, 60*60*12, "/", domain, isSecure, true) // 12時間有効
-	c.SetCookie("logged_in", "true", 60*60*12, "/", domain, isSecure, false)
-
 	// http.Cookie構造体を作成
-	// tokenCookie := &http.Cookie{
-	// 	Name:     "token",
-	// 	Value:    jwtToken,
-	// 	MaxAge:   60 * 60 * 12, // 12時間
-	// 	Path:     "/",
-	// 	Domain:   domain,
-	// 	Secure:   isSecure,
-	// 	HttpOnly: true,
-	// 	SameSite: http.SameSiteNoneMode,
-	// }
-	// loggedInCookie := &http.Cookie{
-	// 	Name:     "logged_in",
-	// 	Value:    "true",
-	// 	MaxAge:   60 * 60 * 12, // 12時間
-	// 	Path:     "/",
-	// 	Domain:   domain,
-	// 	Secure:   isSecure,
-	// 	HttpOnly: false,
-	// 	SameSite: http.SameSiteNoneMode,
-	// }
+	tokenCookie := &http.Cookie{
+		Name:     "token",
+		Value:    jwtToken,
+		MaxAge:   60 * 60 * 12, // 12時間
+		Path:     "/",
+		Domain:   domain,
+		Secure:   isSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	}
+	loggedInCookie := &http.Cookie{
+		Name:     "logged_in",
+		Value:    "true",
+		MaxAge:   60 * 60 * 12, // 12時間
+		Path:     "/",
+		Domain:   domain,
+		Secure:   isSecure,
+		HttpOnly: false,
+		SameSite: http.SameSiteNoneMode,
+	}
 
-	// // 開発環境など非セキュアな場合はSameSiteをLaxに設定
-	// if !isSecure {
-	// 	tokenCookie.SameSite = http.SameSiteLaxMode
-	// 	loggedInCookie.SameSite = http.SameSiteLaxMode
-	// }
+	// 開発環境など非セキュアな場合はSameSiteをLaxに設定
+	if !isSecure {
+		tokenCookie.SameSite = http.SameSiteLaxMode
+		loggedInCookie.SameSite = http.SameSiteLaxMode
+	}
 
-	// // レスポンスヘッダーに直接Cookieを設定
-	// http.SetCookie(c.Writer, tokenCookie)
-	// http.SetCookie(c.Writer, loggedInCookie)
+	// レスポンスヘッダーに直接Cookieを設定
+	http.SetCookie(c.Writer, tokenCookie)
+	http.SetCookie(c.Writer, loggedInCookie)
 
 	// フロントエンドのログイン成功時のリダイレクトURL
 	redirectURL := fmt.Sprintf("%s/budget", os.Getenv("FE_URL")) // FE_URLはフロントエンドのドメイン
@@ -129,29 +125,4 @@ func (ctrl *LineLoginControllerImpl) Callback(c *gin.Context) {
 		redirectURL = "http://localhost:3000/budget" // ローカル開発用フォールバック
 	}
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
-}
-
-// extractHostname は URL から ホスト名のみを抽出します。
-// Cookie の domain パラメータに渡すために使用します。
-func extractHostname(urlStr string) string {
-	if urlStr == "" {
-		return "" // domain 未設定（現在のホストに限定）
-	}
-
-	// URL をパースしてホスト部分を抽出
-	// "http://localhost:3000" → "localhost"
-	// "https://example.com" → "example.com"
-	host, _, err := net.SplitHostPort(urlStr)
-	if err != nil {
-		// ポート番号がない場合、そのままホスト名
-		// スキームを削除
-		if len(urlStr) > 7 && (urlStr[:7] == "http://" || urlStr[:8] == "https://") {
-			if urlStr[:7] == "http://" {
-				return urlStr[7:]
-			}
-			return urlStr[8:]
-		}
-		return urlStr
-	}
-	return host
 }
