@@ -33,8 +33,8 @@ func (s *TokenStore) SaveToken(sessionID string, token CSRFToken) {
 
 // ValidateToken はトークンを検証します
 func (s *TokenStore) ValidateToken(sessionID, token string) bool {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	storedToken, exists := s.tokens[sessionID]
 	if !exists {
@@ -52,8 +52,8 @@ func (s *TokenStore) ValidateToken(sessionID, token string) bool {
 
 // GetToken は保存されているトークンを取得します
 func (s *TokenStore) GetToken(sessionID string) (string, bool) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	storedToken, exists := s.tokens[sessionID]
 	if !exists {
