@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -107,10 +108,12 @@ func (uc *userController) CsrfToken(c *gin.Context) {
 	if err != nil {
 		sessionID = "default" // フォールバック値
 	}
+	log.Printf("CSRF: Using sessionID: %s", sessionID)
 
 	// 既存のトークンを取得または新しいトークンを生成
 	token, err := uc.uu.GetOrGenerateCSRFToken(sessionID)
 	if err != nil {
+		log.Printf("ERROR: Failed to get CSRF token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to handle CSRF token"})
 		return
 	}
