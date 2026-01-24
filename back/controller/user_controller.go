@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yanatoritakuma/budget/back/internal/api"
 	"github.com/yanatoritakuma/budget/back/usecase"
+	"github.com/yanatoritakuma/budget/back/utils"
 )
 
 type UserController interface {
@@ -108,12 +108,10 @@ func (uc *userController) CsrfToken(c *gin.Context) {
 	if err != nil {
 		sessionID = "default" // フォールバック値
 	}
-	log.Printf("CSRF: Using sessionID: %s", sessionID)
 
 	// 既存のトークンを取得または新しいトークンを生成
 	token, err := uc.uu.GetOrGenerateCSRFToken(sessionID)
 	if err != nil {
-		log.Printf("ERROR: Failed to get CSRF token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to handle CSRF token"})
 		return
 	}
@@ -123,7 +121,7 @@ func (uc *userController) CsrfToken(c *gin.Context) {
 		Value:    token,
 		MaxAge:   int(time.Hour / time.Second),
 		Path:     "/",
-		Domain:   os.Getenv("API_DOMAIN"),
+		Domain:   utils.ExtractHostname(os.Getenv("FE_URL")),
 		SameSite: http.SameSiteNoneMode,
 		Secure:   true,
 		HttpOnly: false,
