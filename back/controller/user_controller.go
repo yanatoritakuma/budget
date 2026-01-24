@@ -9,7 +9,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yanatoritakuma/budget/back/internal/api"
 	"github.com/yanatoritakuma/budget/back/usecase"
-	"github.com/yanatoritakuma/budget/back/utils"
 )
 
 type UserController interface {
@@ -121,7 +120,7 @@ func (uc *userController) CsrfToken(c *gin.Context) {
 		Value:    token,
 		MaxAge:   int(time.Hour / time.Second),
 		Path:     "/",
-		Domain:   utils.ExtractHostname(os.Getenv("FE_URL")),
+		Domain:   os.Getenv("API_DOMAIN"),
 		SameSite: http.SameSiteNoneMode,
 		Secure:   true,
 		HttpOnly: false,
