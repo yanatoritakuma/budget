@@ -51,6 +51,7 @@ func (s *TokenStore) ValidateToken(sessionID, token string) bool {
 }
 
 // GetToken は保存されているトークンを取得します
+// 変更
 func (s *TokenStore) GetToken(sessionID string) (string, bool) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
