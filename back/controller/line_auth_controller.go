@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yanatoritakuma/budget/back/model"
 	"github.com/yanatoritakuma/budget/back/usecase"
-	"github.com/yanatoritakuma/budget/back/utils"
 )
 
 // LineLoginController はLINEログインコントローラのインターフェースです。
@@ -84,7 +83,7 @@ func (ctrl *LineLoginControllerImpl) Callback(c *gin.Context) {
 	}
 
 	// Cookie domain を安全に設定（ホスト名のみ）
-	domain := utils.ExtractHostname(os.Getenv("FE_URL"))
+	domain := os.Getenv("API_DOMAIN")
 	isSecure := os.Getenv("GO_ENV") != "dev" // 本番環境では secure=true
 
 	// http.Cookie構造体を作成
@@ -93,7 +92,7 @@ func (ctrl *LineLoginControllerImpl) Callback(c *gin.Context) {
 		Value:    jwtToken,
 		MaxAge:   60 * 60 * 12, // 12時間
 		Path:     "/",
-		Domain:   domain,
+		Domain:   os.Getenv("API_DOMAIN"),
 		Secure:   isSecure,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
