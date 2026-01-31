@@ -71,9 +71,7 @@ func (uc *LineLoginUsecaseImpl) GetLineAuthURL(ctx context.Context, state string
 	}
 	// stateはCSRF対策のためにセッション等で管理される必要があります。
 	// ここでは引数として受け取ったstateをそのまま使用します。
-	authURL := uc.oauth2Config.AuthCodeURL(state,
-		oauth2.SetAuthURLParam("prompt", "consent"),
-		oauth2.SetAuthURLParam("bot_prompt", "aggressive"))
+	authURL := uc.oauth2Config.AuthCodeURL(state)
 	return authURL, nil
 }
 
