@@ -58,6 +58,10 @@ func (ctrl *LineLoginControllerImpl) Login(c *gin.Context) {
 }
 
 // Callback はLINE認証後のコールバックを処理します。
+// 以前はLINEからの直接のリダイレクトを受け取っていましたが、
+// 今後はフロントエンドから認可コードとstateを受け取り、
+// トークン交換とCookie設定を行います。
+// 処理後、フロントエンドへのリダイレクトは行わず、成功ステータスをJSONで返します。
 func (ctrl *LineLoginControllerImpl) Callback(c *gin.Context) {
 	code := c.Query("code")
 	state := c.Query("state")
@@ -118,10 +122,6 @@ func (ctrl *LineLoginControllerImpl) Callback(c *gin.Context) {
 	http.SetCookie(c.Writer, tokenCookie)
 	http.SetCookie(c.Writer, loggedInCookie)
 
-	// フロントエンドのログイン成功時のリダイレクトURL
-	redirectURL := fmt.Sprintf("%s/budget", os.Getenv("FE_URL")) // FE_URLはフロントエンドのドメイン
-	if os.Getenv("FE_URL") == "" {
-		redirectURL = "http://localhost:3000/budget" // ローカル開発用フォールバック
-	}
-	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
+	// フロントエンドは別途リダイレクトを行うため、ここでは成功を返すのみ
+	c.JSON(http.StatusOK, gin.H{"message": "LINEログインに成功しました"})
 }

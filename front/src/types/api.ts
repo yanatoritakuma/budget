@@ -138,12 +138,17 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Redirect to frontend application after successful login */
-                302: {
+                /** @description LINE login successful. Sets JWT cookie. */
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            /** @example LINEログインに成功しました */
+                            message?: string;
+                        };
+                    };
                 };
                 /** @description Invalid code or state */
                 400: {
@@ -439,7 +444,7 @@ export interface components {
         UserResponse: {
             id: number;
             /** Format: email */
-            email: string;
+            email?: string | null;
             name: string;
             image?: string;
             admin: boolean;

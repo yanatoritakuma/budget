@@ -1,55 +1,45 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createHeaders } from "@/utils/getCsrf";
+import { lineAuthCallback } from "../../api/lineAuthCallback";
 
-export default function LineLoginCallbackPage() {
+export default function LineAuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
 
     if (!code || !state) {
-      console.error("LINEログインコールバック: codeまたはstateが見つかりません。");
-      alert("LINEログインに失敗しました。必要な情報が不足しています。");
-      router.push("/auth"); // ログインページに戻す
+      setError("認証コードまたは状態がありません。");
       return;
     }
 
-    const handleLineLoginCallback = async (authCode: string, authState: string) => {
+    const handleLineCallback = async () => {
       try {
-        const headers = await createHeaders(); // CSRFトークンなどを含むヘッダーを生成
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/line/callback?code=${authCode}&state=${authState}`,
-          {
-            method: "GET", // バックエンドAPIはGETリクエストを受け付ける
-            headers: headers,
-            credentials: "include", // Cookieの送受信を有効にする
-          }
-        );
+        await lineAuthCallback(code, state);
 
-        if (res.ok) {
-          // バックエンドがリダイレクトを返すため、ここではレスポンスボディを解析しない
-          // リダイレクトはブラウザによって自動的に処理される
-          // router.push("/budget"); // バックエンドからのリダイレクトを待つ
-        } else {
-          const errorData = await res.json();
-          console.error("LINEログインコールバック失敗:", errorData);
-          alert(`LINEログインに失敗しました: ${errorData.error || "不明なエラー"}`);
-          router.push("/auth"); // ログインページに戻す
-        }
+        router.push("/budget");
       } catch (err) {
-        console.error("LINEログインコールバック中にエラーが発生しました:", err);
-        alert("LINEログイン中に予期せぬエラーが発生しました。");
-        router.push("/auth"); // ログインページに戻す
+        setError("LINEログイン中にエラーが発生しました。");
+        console.error("LINE Login Callback Error:", err);
       }
     };
 
-    handleLineLoginCallback(code, state);
+    handleLineCallback();
   }, [searchParams, router]);
+
+  if (error) {
+    return (
+      <div className="line-login-error">
+        <p>エラー: {error}</p>
+        <button onClick={() => router.push("/")}>ホームに戻る</button>
+      </div>
+    );
+  }
 
   return null;
 }
