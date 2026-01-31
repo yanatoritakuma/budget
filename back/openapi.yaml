@@ -66,8 +66,16 @@ paths:
           required: true
           description: State parameter for CSRF protection
       responses:
-        '302':
-          description: Redirect to frontend application after successful login
+        '200':
+          description: LINE login successful. Sets JWT cookie.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "LINEログインに成功しました"
         '400':
           description: Invalid code or state
         '401':
