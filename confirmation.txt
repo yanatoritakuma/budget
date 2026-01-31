@@ -1,0 +1,8 @@
+はい、この変更内容をmainブランチにマージしてGitHub Actionsのワークフローが実行されれば、`/var/task/bootstrap: /lib64/libc.so.6: version GLIBC_2.34' not found (required by /var/task/bootstrap)`のエラーは解決されるはずです。
+
+変更点：
+1.  `back/Makefile`に、AWS Lambda向けにGoアプリケーションを静的にクロスコンパイルし、クリーンな`lambda-handler.zip`を作成する`build-lambda`ターゲットを追加しました。静的ビルドは通常、実行環境の`glibc`に依存しないため、バージョン不一致の問題を解消します。
+2.  `.github/workflows/deploy-lambda.yml`のビルドステップを、この新しい`make build-lambda`ターゲットを呼び出すように修正しました。これにより、AWS Lambdaデプロイメントが改善されたビルドプロセスを使用するようになります。
+3.  `go-version`を`1.21`から`1.25`に更新し、Goのバージョンの一貫性を確保しました。
+
+これらの変更により、Lambdaの実行環境と互換性のあるバイナリが生成され、デプロイされるため、問題が解決されると期待されます。
