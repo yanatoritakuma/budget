@@ -1,18 +1,13 @@
 "use client";
 
-import { useState } from "react"; // Removed useRef
+import { useState } from "react";
 import "@/app/auth/components/auth.scss";
 import { createHeaders } from "@/utils/getCsrf";
 import { TextBox } from "@/components/elements/textBox/textBox";
 import { ButtonBox } from "@/components/elements/buttonBox/buttonBox";
 import { useRouter } from "next/navigation";
 
-type AuthProps = {
-  lineAuthUrl: string | null;
-};
-
-export default function Auth({ lineAuthUrl }: AuthProps) {
-  console.log("lineAuthUrl:", lineAuthUrl);
+export default function Auth() {
   const router = useRouter();
   const [authState, setAuthState] = useState({
     mail: "",
@@ -83,7 +78,31 @@ export default function Auth({ lineAuthUrl }: AuthProps) {
     }
   };
 
-  // Removed handleLineLogin function entirely
+  const handleLineLogin = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/line/login`, {
+        method: "GET",
+        headers: await createHeaders(),
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.auth_url) {
+          window.location.href = data.auth_url; // LINE認証ページへリダイレクト
+        } else {
+          alert("LINE認証URLが取得できませんでした。");
+        }
+      } else {
+        alert("LINEログイン開始に失敗しました。");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("LINEログイン開始中にエラーが発生しました。");
+    }
+  };
+
 
   return (
     <section className="authInputBox">
@@ -141,14 +160,13 @@ export default function Auth({ lineAuthUrl }: AuthProps) {
           {isLogin ? "ログイン" : "登録"}
         </ButtonBox>
 
-        {lineAuthUrl ? (
-          <a href={lineAuthUrl} target="_self" rel="noopener noreferrer">
-            <ButtonBox>LINEでログイン</ButtonBox>
-          </a>
-        ) : (
-          <ButtonBox disabled>LINEでログイン (URL取得中...)</ButtonBox>
-        )}
+        {/* LINEログインボタンの追加 */}
+        <ButtonBox onClick={handleLineLogin}>
+          LINEでログイン
+        </ButtonBox>
       </div>
     </section>
   );
 }
+
+
