@@ -1,7 +1,10 @@
 // front/src/app/api/lineAuthCallback.ts
 
-type LineAuthCallbackResponse = {
-  message: string;
+export type LineAuthCallbackResponse = {
+  message?: string;
+  status: "logged_in" | "unregistered";
+  line_name?: string;
+  line_picture?: string;
 };
 
 type LineAuthCallbackError = {

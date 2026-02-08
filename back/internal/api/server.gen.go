@@ -16,6 +16,12 @@ type ServerInterface interface {
 	// LINE login callback
 	// (GET /api/v1/auth/line/callback)
 	GetApiV1AuthLineCallback(w http.ResponseWriter, r *http.Request, params GetApiV1AuthLineCallbackParams)
+	// Create new user from LINE account
+	// (POST /api/v1/auth/line/create)
+	PostApiV1AuthLineCreate(w http.ResponseWriter, r *http.Request)
+	// Link LINE account to existing user
+	// (POST /api/v1/auth/line/link)
+	PostApiV1AuthLineLink(w http.ResponseWriter, r *http.Request)
 	// Initiate LINE login flow
 	// (GET /api/v1/auth/line/login)
 	GetApiV1AuthLineLogin(w http.ResponseWriter, r *http.Request)
@@ -46,6 +52,18 @@ type Unimplemented struct{}
 // LINE login callback
 // (GET /api/v1/auth/line/callback)
 func (_ Unimplemented) GetApiV1AuthLineCallback(w http.ResponseWriter, r *http.Request, params GetApiV1AuthLineCallbackParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create new user from LINE account
+// (POST /api/v1/auth/line/create)
+func (_ Unimplemented) PostApiV1AuthLineCreate(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Link LINE account to existing user
+// (POST /api/v1/auth/line/link)
+func (_ Unimplemented) PostApiV1AuthLineLink(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -140,6 +158,34 @@ func (siw *ServerInterfaceWrapper) GetApiV1AuthLineCallback(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetApiV1AuthLineCallback(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostApiV1AuthLineCreate operation middleware
+func (siw *ServerInterfaceWrapper) PostApiV1AuthLineCreate(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostApiV1AuthLineCreate(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostApiV1AuthLineLink operation middleware
+func (siw *ServerInterfaceWrapper) PostApiV1AuthLineLink(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostApiV1AuthLineLink(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -427,6 +473,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/auth/line/callback", wrapper.GetApiV1AuthLineCallback)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/auth/line/create", wrapper.PostApiV1AuthLineCreate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/auth/line/link", wrapper.PostApiV1AuthLineLink)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/auth/line/login", wrapper.GetApiV1AuthLineLogin)

@@ -20,9 +20,16 @@ export default function LineAuthCallbackPage() {
 
     const handleLineCallback = async () => {
       try {
-        await lineAuthCallback(code, state);
+        const data = await lineAuthCallback(code, state);
 
-        router.push("/budget");
+        if (data.status === "unregistered") {
+          const params = new URLSearchParams();
+          if (data.line_name) params.set("name", data.line_name);
+          if (data.line_picture) params.set("picture", data.line_picture);
+          router.push(`/auth/line-link?${params.toString()}`);
+        } else {
+          router.push("/budget");
+        }
       } catch (err) {
         setError("LINEログイン中にエラーが発生しました。");
         console.error("LINE Login Callback Error:", err);
