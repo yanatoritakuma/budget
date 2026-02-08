@@ -92,6 +92,8 @@ func NewRouter(
 	// LINE Login routes
 	r.GET("/api/v1/auth/line/login", gin.HandlerFunc(lineLoginController.Login))
 	r.GET("/api/v1/auth/line/callback", gin.HandlerFunc(lineLoginController.Callback))
+	r.POST("/api/v1/auth/line/link", gin.HandlerFunc(lineLoginController.LinkAccount))
+	r.POST("/api/v1/auth/line/create", gin.HandlerFunc(lineLoginController.CreateAccount))
 
 	// -------------------------
 	// 認証必須ルート

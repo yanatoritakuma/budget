@@ -21,7 +21,11 @@ import (
 // LineLoginUsecase はLINEログインに関するユースケースのインターフェースです。
 type LineLoginUsecase interface {
 	GetLineAuthURL(ctx context.Context, state string) (string, error)
-	LineLoginCallback(ctx context.Context, code, state string) (string, error) // JWTを返す
+	LineLoginCallback(ctx context.Context, code, state string) (string, *LineIDTokenClaims, error)
+	GeneratePreAuthToken(lineID, name, picture string) (string, error)
+	GetLineInfoFromPreAuthToken(tokenString string) (string, string, string, error)
+	LinkLineAccount(ctx context.Context, preAuthToken, email, password string) (string, error)
+	CreateUserFromLine(ctx context.Context, preAuthToken string) (string, error)
 }
 
 // LineLoginUsecaseImpl はLineLoginUsecaseの実装です。
@@ -82,21 +86,19 @@ type LineIDTokenClaims struct {
 	Picture string `json:"picture,omitempty"`
 }
 
-// LineLoginCallback はLINEからのコールバックを処理し、JWTを返します。
-func (uc *LineLoginUsecaseImpl) LineLoginCallback(ctx context.Context, code, state string) (string, error) {
-	// ここでstateの検証を行う必要がありますが、セッション管理の実装に依存するため、
-	// 一旦は引数として受け取ったstateを使用するのみとします。
-
+// LineLoginCallback はLINEからのコールバックを処理します。
+// 既存ユーザーがいればそのユーザーのJWTを返し、いなければLINE情報を返します。
+func (uc *LineLoginUsecaseImpl) LineLoginCallback(ctx context.Context, code, state string) (string, *LineIDTokenClaims, error) {
 	// 認可コードとアクセストークンを交換
 	token, err := uc.oauth2Config.Exchange(ctx, code)
 	if err != nil {
-		return "", fmt.Errorf("failed to exchange auth code for token: %w", err)
+		return "", nil, fmt.Errorf("failed to exchange auth code for token: %w", err)
 	}
 
 	// IDトークンの検証とユーザー情報の取得
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		return "", fmt.Errorf("id_token not found")
+		return "", nil, fmt.Errorf("id_token not found")
 	}
 
 	// IDトークンのパースと署名検証（JWKS使用）
@@ -106,7 +108,7 @@ func (uc *LineLoginUsecaseImpl) LineLoginCallback(ctx context.Context, code, sta
 	// トークンをパース（署名検証なし）して kid を取得
 	_, _, err = new(jwt.Parser).ParseUnverified(rawIDToken, unverifiedClaims)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse ID token: %w", err)
+		return "", nil, fmt.Errorf("failed to parse ID token: %w", err)
 	}
 
 	// kid を使用してキーを取得し、署名を検証
@@ -136,26 +138,99 @@ func (uc *LineLoginUsecaseImpl) LineLoginCallback(ctx context.Context, code, sta
 		jwt.WithExpirationRequired(),
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse or validate ID token: %w", err)
+		return "", nil, fmt.Errorf("failed to parse or validate ID token: %w", err)
 	}
 
-	lineUserID := claims.Subject // subクレームがLINEユーザーID
-	userName := claims.Name
-	userImage := claims.Picture
+	lineUserIDStr := claims.Subject // subクレームがLINEユーザーID
 
-	// ユーザーの登録または取得
-	targetUser, err := uc.userUsecase.CreateUserForLine(lineUserID, userName, userImage)
+	lineUserIDVo, err := user.NewLineUserID(lineUserIDStr)
 	if err != nil {
-		return "", fmt.Errorf("failed to create or get user for LINE login: %w", err)
+		return "", nil, fmt.Errorf("invalid line user id: %w", err)
 	}
 
-	// アプリケーションのJWTを生成
-	jwtToken, err := uc.userUsecase.GenerateToken(targetUser)
+	// 既存のユーザーを検索
+	existingUser, err := uc.userRepo.FindByLineUserID(ctx, lineUserIDVo)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate JWT for LINE user: %w", err)
+		return "", nil, fmt.Errorf("failed to find user by line user ID: %w", err)
 	}
 
-	return jwtToken, nil
+	if existingUser != nil {
+		// ユーザーが存在する場合はJWTを生成して返す
+		token, err := uc.userUsecase.GenerateToken(existingUser)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to generate token: %w", err)
+		}
+		return token, nil, nil
+	}
+
+	// ユーザーが存在しない場合はLINE情報を返す
+	return "", claims, nil
+}
+
+// GeneratePreAuthToken は未登録ユーザーのための一次トークンを生成します。
+func (uc *LineLoginUsecaseImpl) GeneratePreAuthToken(lineID, name, picture string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":     lineID,
+		"name":    name,
+		"picture": picture,
+		"exp":     time.Now().Add(time.Minute * 30).Unix(), // 30分有効
+		"type":    "pre_auth_line",
+	})
+	return token.SignedString([]byte(os.Getenv("SECRET")))
+}
+
+// GetLineInfoFromPreAuthToken は一次トークンからLINE情報を取得します。
+func (uc *LineLoginUsecaseImpl) GetLineInfoFromPreAuthToken(tokenString string) (string, string, string, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(os.Getenv("SECRET")), nil
+	})
+	if err != nil {
+		return "", "", "", err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		if claims["type"] != "pre_auth_line" {
+			return "", "", "", fmt.Errorf("invalid token type")
+		}
+		sub, _ := claims["sub"].(string)
+		name, _ := claims["name"].(string)
+		picture, _ := claims["picture"].(string)
+		return sub, name, picture, nil
+	}
+	return "", "", "", fmt.Errorf("invalid token")
+}
+
+// LinkLineAccount はプレ認証トークンとメール/パスワードを使用してアカウントを紐付けます。
+func (uc *LineLoginUsecaseImpl) LinkLineAccount(ctx context.Context, preAuthToken, email, password string) (string, error) {
+	lineID, _, _, err := uc.GetLineInfoFromPreAuthToken(preAuthToken)
+	if err != nil {
+		return "", fmt.Errorf("invalid pre-auth token: %w", err)
+	}
+
+	user, err := uc.userUsecase.LinkLineAccount(email, password, lineID)
+	if err != nil {
+		return "", fmt.Errorf("failed to link account: %w", err)
+	}
+
+	return uc.userUsecase.GenerateToken(user)
+}
+
+// CreateUserFromLine はプレ認証トークンを使用して新規ユーザーを作成します。
+func (uc *LineLoginUsecaseImpl) CreateUserFromLine(ctx context.Context, preAuthToken string) (string, error) {
+	lineID, name, picture, err := uc.GetLineInfoFromPreAuthToken(preAuthToken)
+	if err != nil {
+		return "", fmt.Errorf("invalid pre-auth token: %w", err)
+	}
+
+	user, err := uc.userUsecase.CreateUserFromLine(lineID, name, picture)
+	if err != nil {
+		return "", fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return uc.userUsecase.GenerateToken(user)
 }
 
 // getLinePublicKey はLINEのJWKSから指定された kid に対応する公開鍵を取得します。

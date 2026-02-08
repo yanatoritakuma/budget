@@ -32,6 +32,12 @@ type ExpenseResponse struct {
 	UserId    int       `json:"user_id"`
 }
 
+// LinkAccountRequest defines model for LinkAccountRequest.
+type LinkAccountRequest struct {
+	Email    openapi_types.Email `json:"email"`
+	Password string              `json:"password"`
+}
+
 // SignUpRequest defines model for SignUpRequest.
 type SignUpRequest struct {
 	Email    openapi_types.Email `json:"email"`
@@ -76,6 +82,9 @@ type GetExpensesParams struct {
 	// Category Category to filter expenses
 	Category *string `form:"category,omitempty" json:"category,omitempty"`
 }
+
+// PostApiV1AuthLineLinkJSONRequestBody defines body for PostApiV1AuthLineLink for application/json ContentType.
+type PostApiV1AuthLineLinkJSONRequestBody = LinkAccountRequest
 
 // PostExpensesJSONRequestBody defines body for PostExpenses for application/json ContentType.
 type PostExpensesJSONRequestBody = ExpenseRequest

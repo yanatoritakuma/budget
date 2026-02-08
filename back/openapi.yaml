@@ -51,7 +51,7 @@ paths:
       tags:
         - auth
       summary: LINE login callback
-      description: Handles the callback from LINE after user authentication. Sets JWT cookie and redirects.
+      description: Handles the callback from LINE. If user exists, logs in. If not, returns unregistered status.
       parameters:
         - in: query
           name: code
@@ -75,11 +75,61 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "LINEログインに成功しました"
+                  status:
+                    type: string
+                    enum: ["logged_in", "unregistered"]
+                  line_name:
+                    type: string
+                    description: Returned only if status is unregistered
+                  line_picture:
+                    type: string
+                    description: Returned only if status is unregistered
         '400':
           description: Invalid code or state
         '401':
           description: Invalid CSRF state
+        '500':
+          description: Internal server error
+  /api/v1/auth/line/link:
+    post:
+      tags:
+        - auth
+      summary: Link LINE account to existing user
+      description: Links a pending LINE account (from pre-auth cookie) to an existing email/password account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkAccountRequest'
+      responses:
+        '200':
+          description: Account linked and logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid input or missing pre-auth cookie
+        '401':
+          description: Invalid credentials
+        '500':
+          description: Internal server error
+  /api/v1/auth/line/create:
+    post:
+      tags:
+        - auth
+      summary: Create new user from LINE account
+      description: Creates a new user using the pending LINE account information (from pre-auth cookie).
+      responses:
+        '201':
+          description: User created and logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Missing pre-auth cookie
         '500':
           description: Internal server error
   /user:
@@ -230,6 +280,18 @@ components:
           type: string
         image:
           type: string
+    LinkAccountRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
     UserResponse:
       type: object
       required:

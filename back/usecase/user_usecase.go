@@ -26,7 +26,8 @@ type UserUsecase interface {
 	JoinHousehold(userID uint, inviteCode string) error
 	GetOrGenerateCSRFToken(sessionID string) (string, error)
 	ValidateCSRFToken(sessionID, token string) bool
-	CreateUserForLine(lineUserID, name, image string) (*user.User, error)
+	CreateUserFromLine(lineUserID, name, image string) (*user.User, error)
+	LinkLineAccount(email, password, lineUserID string) (*user.User, error)
 	GenerateToken(userEntity *user.User) (string, error)
 }
 
@@ -312,27 +313,13 @@ func (uu *userUsecase) JoinHousehold(userID uint, inviteCode string) error {
 	return nil
 }
 
-// CreateUserForLine はLINEログインからの新規ユーザー登録を処理します。
-// 既にLINEユーザーIDを持つユーザーが存在する場合は、そのユーザーを返します。
-func (uu *userUsecase) CreateUserForLine(lineUserIDStr, name, image string) (*user.User, error) {
-	ctx := context.Background()
+// CreateUserFromLine はLINEログインからの新規ユーザー登録を処理します（紐付けなし）。
+func (uu *userUsecase) CreateUserFromLine(lineUserIDStr, name, image string) (*user.User, error) {
 	var domainUser *user.User
 
 	lineUserIDVo, err := user.NewLineUserID(lineUserIDStr)
 	if err != nil {
-		// NewLineUserIDは現在エラーを返さないが、将来のためにチェック
 		return nil, fmt.Errorf("invalid line user id: %w", err)
-	}
-
-	// 既にLineUserIDを持つユーザーがいるか確認
-	if lineUserIDVo != nil {
-		existingUser, err := uu.ur.FindByLineUserID(ctx, lineUserIDVo)
-		if err != nil {
-			return nil, fmt.Errorf("failed to find user by line user ID: %w", err)
-		}
-		if existingUser != nil {
-			return existingUser, nil // 既存ユーザーを返す
-		}
 	}
 
 	err = uu.uow.Transaction(func(repos Repositories) error {
@@ -384,6 +371,48 @@ func (uu *userUsecase) CreateUserForLine(lineUserIDStr, name, image string) (*us
 	}
 
 	return domainUser, nil
+}
+
+// LinkLineAccount は既存のメールアドレス/パスワード認証ユーザーにLINE IDを紐付けます。
+func (uu *userUsecase) LinkLineAccount(email, password, lineUserIDStr string) (*user.User, error) {
+	ctx := context.Background()
+
+	// メールアドレスでユーザーを検索
+	existingUser, err := uu.ur.FindByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user: %w", err)
+	}
+	if existingUser == nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	// パスワード検証
+	if err := bcrypt.CompareHashAndPassword([]byte(existingUser.Password.Value()), []byte(password)); err != nil {
+		return nil, fmt.Errorf("invalid password")
+	}
+
+	// LINE IDの形式検証
+	lineUserIDVo, err := user.NewLineUserID(lineUserIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid line user id: %w", err)
+	}
+
+	// LINE IDの紐付け更新
+	checkUser, err := uu.ur.FindByLineUserID(ctx, lineUserIDVo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing link: %w", err)
+	}
+	if checkUser != nil && checkUser.ID.Value() != existingUser.ID.Value() {
+		return nil, fmt.Errorf("line account already linked to another user")
+	}
+
+	existingUser.LineUserID = lineUserIDVo
+
+	if err := uu.ur.Update(ctx, existingUser); err != nil {
+		return nil, fmt.Errorf("failed to update user linkage: %w", err)
+	}
+
+	return existingUser, nil
 }
 
 // generateCSRFToken は新しいCSRFトークンを生成し、保存します（内部メソッド）
