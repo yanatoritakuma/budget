@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { lineLinkAccount } from "../../api/lineLinkAccount";
 import { lineCreateAccount } from "../../api/lineCreateAccount";
 import styles from "./lineLink.module.scss";
 
-export default function LineLinkPage() {
+function LineLinkContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const name = searchParams.get("name");
@@ -83,7 +83,11 @@ export default function LineLinkPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            <button type="submit" className={`${styles.button} ${styles.primary}`} disabled={loading}>
+            <button
+              type="submit"
+              className={`${styles.button} ${styles.primary}`}
+              disabled={loading}
+            >
               {loading ? "処理中..." : "連携してログイン"}
             </button>
           </form>
@@ -106,5 +110,13 @@ export default function LineLinkPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LineLinkPage() {
+  return (
+    <Suspense fallback={<div className={styles.container}>読み込み中...</div>}>
+      <LineLinkContent />
+    </Suspense>
   );
 }

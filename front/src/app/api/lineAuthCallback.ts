@@ -1,11 +1,7 @@
 // front/src/app/api/lineAuthCallback.ts
+import { paths } from "@/types/api";
 
-export type LineAuthCallbackResponse = {
-  message?: string;
-  status: "logged_in" | "unregistered";
-  line_name?: string;
-  line_picture?: string;
-};
+export type LineAuthCallbackResponse = paths["/api/v1/auth/line/callback"]["get"]["responses"]["200"]["content"]["application/json"];
 
 type LineAuthCallbackError = {
   error: string;

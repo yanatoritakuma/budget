@@ -122,7 +122,7 @@ export interface paths {
         };
         /**
          * LINE login callback
-         * @description Handles the callback from LINE after user authentication. Sets JWT cookie and redirects.
+         * @description Handles the callback from LINE. If user exists, logs in. If not, returns unregistered status.
          */
         get: {
             parameters: {
@@ -145,8 +145,13 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /** @example LINEログインに成功しました */
                             message?: string;
+                            /** @enum {string} */
+                            status?: "logged_in" | "unregistered";
+                            /** @description Returned only if status is unregistered */
+                            line_name?: string;
+                            /** @description Returned only if status is unregistered */
+                            line_picture?: string;
                         };
                     };
                 };
@@ -175,6 +180,123 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/line/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link LINE account to existing user
+         * @description Links a pending LINE account (from pre-auth cookie) to an existing email/password account.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LinkAccountRequest"];
+                };
+            };
+            responses: {
+                /** @description Account linked and logged in successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserResponse"];
+                    };
+                };
+                /** @description Invalid input or missing pre-auth cookie */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Invalid credentials */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/line/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create new user from LINE account
+         * @description Creates a new user using the pending LINE account information (from pre-auth cookie).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description User created and logged in successfully */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserResponse"];
+                    };
+                };
+                /** @description Missing pre-auth cookie */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -440,6 +562,12 @@ export interface components {
             password: string;
             name: string;
             image?: string;
+        };
+        LinkAccountRequest: {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
         };
         UserResponse: {
             id: number;
