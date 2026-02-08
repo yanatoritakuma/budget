@@ -9,7 +9,9 @@
 1. 支出登録（`POST /expenses`）
 2. 予算チェックロジック（Usecase）
 3. 条件合致時、SQSへイベント送信
-4. （後段）通知LambdaがSQSをトリガーにLINE通知を送信
+4. （後段）通知LambdaがSQSをトリガーに起動
+    - `household_id` を元に、DBからその世帯に所属する全ユーザーの `LineUserID` を取得。
+    - LINE Messaging API を使用して通知を送信。
 
 ## **データモデル**
 
