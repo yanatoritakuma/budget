@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"github.com/yanatoritakuma/budget/back/domain/budget"
 	"github.com/yanatoritakuma/budget/back/domain/expense"
 	"github.com/yanatoritakuma/budget/back/domain/household"
 	"github.com/yanatoritakuma/budget/back/domain/user"
@@ -11,6 +12,7 @@ type Repositories struct {
 	User      user.UserRepository
 	Household household.HouseholdRepository
 	Expense   expense.ExpenseRepository
+	Budget    budget.IBudgetRepository
 	// 今後他のリポジトリが追加された場合は、ここに追加します。
 }
 

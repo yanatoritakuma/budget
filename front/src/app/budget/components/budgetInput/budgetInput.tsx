@@ -211,8 +211,14 @@ export default function BudgetInput({ loginUser, householdUsers }: Props) {
         router.refresh();
         alert("支出を登録しました。");
       } else {
-        const errorData = await res.json();
-        setError(errorData.error || "支出の登録に失敗しました");
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await res.json();
+          setError(errorData.error || "支出の登録に失敗しました");
+        } else {
+          const text = await res.text();
+          setError(text || `エラーが発生しました (Status: ${res.status})`);
+        }
       }
     } catch (err) {
       console.error(err);

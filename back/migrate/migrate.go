@@ -15,5 +15,6 @@ func main() {
 		&model.Household{},
 		&model.User{},
 		&model.Expense{},
+		&model.Budget{},
 	)
 }

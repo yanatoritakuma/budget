@@ -56,6 +56,17 @@ func (er *ExpenseRepositoryImpl) GetExpense(ctx context.Context, householdID uin
 	return expenses, nil
 }
 
+func (er *ExpenseRepositoryImpl) GetTotalAmountByMonth(ctx context.Context, householdID uint, year int, month int) (int, error) {
+	var total int
+	err := er.db.WithContext(ctx).Table("expenses").
+		Select("COALESCE(SUM(amount), 0)").
+		Joins(`JOIN "user" ON "user".id = expenses.user_id`).
+		Where(`"user".household_id = ?`, householdID).
+		Where("EXTRACT(YEAR FROM date) = ? AND EXTRACT(MONTH FROM date) = ?", year, month).
+		Scan(&total).Error
+	return total, err
+}
+
 func (er *ExpenseRepositoryImpl) UpdateExpense(ctx context.Context, e *expense.Expense) error {
 	expenseModel := toModelExpense(e)
 	return er.db.WithContext(ctx).Model(&model.Expense{}).Where("id = ?", e.ID.Value()).Updates(expenseModel).Error

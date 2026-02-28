@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/yanatoritakuma/budget/back/domain/budget"
 	"github.com/yanatoritakuma/budget/back/domain/expense"
 	"github.com/yanatoritakuma/budget/back/domain/user"
 	"github.com/yanatoritakuma/budget/back/internal/api"
@@ -17,12 +18,27 @@ type ExpenseUsecase interface {
 }
 
 type expenseUsecase struct {
-	er expense.ExpenseRepository
-	ur user.UserRepository
+	er  expense.ExpenseRepository
+	ur  user.UserRepository
+	br  budget.IBudgetRepository
+	uow UnitOfWork
+	ns  budget.INotificationService
 }
 
-func NewExpenseUsecase(er expense.ExpenseRepository, ur user.UserRepository) ExpenseUsecase {
-	return &expenseUsecase{er: er, ur: ur}
+func NewExpenseUsecase(
+	er expense.ExpenseRepository,
+	ur user.UserRepository,
+	br budget.IBudgetRepository,
+	uow UnitOfWork,
+	ns budget.INotificationService,
+) ExpenseUsecase {
+	return &expenseUsecase{
+		er:  er,
+		ur:  ur,
+		br:  br,
+		uow: uow,
+		ns:  ns,
+	}
 }
 
 func (eu *expenseUsecase) CreateExpense(ctx context.Context, req api.ExpenseRequest) (api.ExpenseResponse, error) {
@@ -43,19 +59,82 @@ func (eu *expenseUsecase) CreateExpense(ctx context.Context, req api.ExpenseRequ
 		return api.ExpenseResponse{}, err
 	}
 
-	if err := eu.er.CreateExpense(ctx, domainExpense); err != nil {
-		return api.ExpenseResponse{}, err
-	}
+	var resExpense api.ExpenseResponse
 
-	resExpense := api.ExpenseResponse{
-		Id:        int(domainExpense.ID.Value()),
-		UserId:    int(domainExpense.UserID),
-		Amount:    domainExpense.Amount.Value(),
-		StoreName: domainExpense.StoreName.Value(),
-		Date:      domainExpense.Date,
-		Category:  domainExpense.Category.Value(),
-		Memo:      &memo,
-		CreatedAt: domainExpense.CreatedAt,
+	err = eu.uow.Transaction(func(repos Repositories) error {
+		// 支出の登録
+		if err := repos.Expense.CreateExpense(ctx, domainExpense); err != nil {
+			return err
+		}
+
+		// ユーザー情報の取得（世帯ID取得のため）
+		currentUser, err := repos.User.FindByID(ctx, uint(req.UserId))
+		if err != nil {
+			return err
+		}
+		if currentUser == nil {
+			return fmt.Errorf("user not found")
+		}
+
+		// 予算超過チェック
+		year := domainExpense.Date.Year()
+		month := int(domainExpense.Date.Month())
+		yearMonth := fmt.Sprintf("%d/%02d", year, month)
+
+		b, err := repos.Budget.FindByHouseholdIDAndYearMonth(ctx, currentUser.HouseholdID, yearMonth)
+		if err != nil {
+			return err
+		}
+
+		// 予算設定があり、かつ未通知の場合のみチェック
+		if b != nil && !b.IsNotified() {
+			total, err := repos.Expense.GetTotalAmountByMonth(ctx, currentUser.HouseholdID, year, month)
+			if err != nil {
+				return err
+			}
+
+			if total > b.Amount {
+				// SQS通知送信
+				event := budget.BudgetExceededEvent{
+					Type:          "BUDGET_EXCEEDED",
+					HouseholdID:   currentUser.HouseholdID,
+					YearMonth:     yearMonth,
+					BudgetAmount:  b.Amount,
+					CurrentAmount: total,
+				}
+
+				// 通知送信（NotificationServiceが初期化されている場合のみ）
+				if eu.ns != nil {
+					if err := eu.ns.SendBudgetExceededNotification(ctx, event); err != nil {
+						// 通知失敗をログに記録し、支出登録は継続する（通知はベストエフォート）
+						fmt.Printf("Warning: failed to send notification: %v\n", err)
+					} else {
+						// 通知成功時のみ通知済みフラグを更新
+						b.SetNotified()
+						if err := repos.Budget.Update(ctx, b); err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+
+		resExpense = api.ExpenseResponse{
+			Id:        int(domainExpense.ID.Value()),
+			UserId:    int(domainExpense.UserID),
+			Amount:    domainExpense.Amount.Value(),
+			StoreName: domainExpense.StoreName.Value(),
+			Date:      domainExpense.Date,
+			Category:  domainExpense.Category.Value(),
+			Memo:      &memo,
+			CreatedAt: domainExpense.CreatedAt,
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return api.ExpenseResponse{}, err
 	}
 
 	return resExpense, nil

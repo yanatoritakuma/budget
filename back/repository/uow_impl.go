@@ -24,6 +24,7 @@ func (u *unitOfWork) Transaction(fn func(usecase.Repositories) error) error {
 			User:      NewUserRepositoryImpl(tx),
 			Household: NewHouseholdRepositoryImpl(tx),
 			Expense:   NewExpenseRepositoryImpl(tx),
+			Budget:    NewBudgetRepository(tx),
 		}
 		return fn(repos)
 	})

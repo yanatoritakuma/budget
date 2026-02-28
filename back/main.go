@@ -16,6 +16,7 @@ import (
 	"github.com/yanatoritakuma/budget/back/repository"
 	"github.com/yanatoritakuma/budget/back/router"
 	"github.com/yanatoritakuma/budget/back/usecase"
+	"github.com/yanatoritakuma/budget/back/utils"
 )
 
 var ginLambda *ginadapter.GinLambdaV2
@@ -23,15 +24,25 @@ var ginLambda *ginadapter.GinLambdaV2
 // setupRouter initializes the database, repositories, usecases, controllers and router.
 func setupRouter() *gin.Engine {
 	dbInstance := db.NewDB()
+	ctx := context.Background()
 
 	// Repositories
 	userRepoImpl := repository.NewUserRepositoryImpl(dbInstance)
 	householdRepoImpl := repository.NewHouseholdRepositoryImpl(dbInstance)
 	expenseRepository := repository.NewExpenseRepositoryImpl(dbInstance)
+	budgetRepository := repository.NewBudgetRepository(dbInstance)
 	uow := repository.NewUnitOfWork(dbInstance)
 
+	// Notification Service
+	ns, err := utils.NewSQSNotificationService(ctx)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize SQS notification service: %v", err)
+		// Fallback to a mock or continue without it if allowed.
+		// For now, we continue but CreateExpense might fail if it's called.
+	}
+
 	// Usecases
-	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository, userRepoImpl)
+	expenseUsecase := usecase.NewExpenseUsecase(expenseRepository, userRepoImpl, budgetRepository, uow, ns)
 	userUsecase := usecase.NewUserUsecase(userRepoImpl, householdRepoImpl, uow)
 
 	// Controllers
